@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# 비밀값 (템플릿만 커밋)
+.env
+.env.*
+!.env.example
+
+# Node / 빌드 산출물
+node_modules/
+
+# 로컬 도구 상태
+.omc/
