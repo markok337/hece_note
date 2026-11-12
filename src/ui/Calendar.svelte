@@ -1,6 +1,6 @@
 <script lang="ts">
   import { blog } from "../data/blog.svelte";
-  import { cellColor, hasContent, moveBlock } from "../domain/blog";
+  import { cellColor, colorLabel, hasContent, moveBlock } from "../domain/blog";
   import { monthGrid, parseYmd, todayYmd, type MonthRef } from "../domain/dates";
 
   interface Props {
@@ -164,7 +164,7 @@
           oncontextmenu={(e) => e.preventDefault()}
         >
           <span class="num">{parseYmd(day).day}</span>
-          {#if item?.assignee}<span class="badge">{item.assignee}</span>{/if}
+          {#if colorLabel(color)}<span class="badge">{colorLabel(color)}</span>{/if}
           <span class="cat">{wrapCategory(view.category)}</span>
           {#if view.topic}<span class="topic">{view.topic}</span>{/if}
         </button>

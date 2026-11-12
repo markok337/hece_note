@@ -121,6 +121,13 @@ export function cellColor(item: BlogDay | null): CellColor {
   return "white";
 }
 
+/** 칸에 붙이는 글자. 하늘색은 "행이", 분홍은 "챙이"다. 담당이 아니라 지금 칸 색을 따른다. */
+export function colorLabel(color: CellColor): string {
+  if (color === "blue") return "행이";
+  if (color === "pink") return "챙이";
+  return "";
+}
+
 /** 날짜 이동이 가능한지. 불가능하면 이유를 돌려준다. */
 export function moveBlock(from: BlogDay | null, to: BlogDay | null): string | null {
   if (from === null || !hasContent(from)) return "옮길 내용이 없다.";

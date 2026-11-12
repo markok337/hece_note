@@ -3,6 +3,7 @@ import {
   applyMove,
   cellColor,
   checkToggleBlock,
+  colorLabel,
   defaultCategory,
   emptyDay,
   moveBlock,
@@ -164,5 +165,19 @@ describe("moveBlock / applyMove", () => {
     const { moved, vacated } = applyMove(source, "2026-11-12");
     expect(moved).toEqual({ ...source, day: "2026-11-12" });
     expect(vacated).toEqual(emptyDay("2026-11-10", "뷰티"));
+  });
+});
+
+describe("colorLabel", () => {
+  it("하늘색은 행이, 분홍은 챙이, 그 외는 비운다", () => {
+    expect(colorLabel("blue")).toBe("행이");
+    expect(colorLabel("pink")).toBe("챙이");
+    expect(colorLabel("white")).toBe("");
+    expect(colorLabel("gray")).toBe("");
+  });
+
+  it("행이 담당이 글작성 단계(분홍)에 있으면 챙이로 표시된다", () => {
+    const item = day({ assignee: "행이", topic: "a", photo: true, writing: true });
+    expect(colorLabel(cellColor(item))).toBe("챙이");
   });
 });
