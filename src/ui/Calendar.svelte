@@ -1,6 +1,7 @@
 <script lang="ts">
   import { blog } from "../data/blog.svelte";
   import { cellColor, colorLabel, hasContent, moveBlock, nextStep } from "../domain/blog";
+  import { fitCellFont } from "../domain/cell-font";
   import { monthGrid, parseYmd, todayYmd, type MonthRef } from "../domain/dates";
 
   interface Props {
@@ -48,6 +49,8 @@
   let pending: Pending | null = null;
   let swipe: Swipe | null = null;
   let gridEl = $state<HTMLDivElement>();
+  // 칸 크기에 맞춰 정한 분야·주제 글자 크기(px). 재기 전에는 CSS 기본값을 쓴다.
+  let cellFont = $state<number | null>(null);
   // 이번에 누른 동안 아이템 드래그가 시작됐으면 쓸어 넘기기로 보지 않는다.
   let itemDragged = false;
   let drag = $state<{ from: string; x: number; y: number; over: string | null } | null>(null);
@@ -79,6 +82,25 @@
     drag = { from: pending.from, x, y, over: dayAt(x, y) };
     onnavhover(navAt(x, y));
   }
+
+  /** 첫 칸의 안쪽 크기를 재서 글자 크기를 다시 정한다. */
+  function measureFont(): void {
+    const cell = gridEl?.querySelector<HTMLElement>(".cell");
+    if (!cell) return;
+    const style = getComputedStyle(cell);
+    const innerWidth = cell.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const innerHeight = cell.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    cellFont = fitCellFont(innerWidth, innerHeight);
+  }
+
+  // 화면 크기가 바뀌거나 주 수(4~6줄)가 바뀌어 칸 높이가 달라질 때마다 다시 정한다.
+  $effect(() => {
+    if (!gridEl || weeks.length === 0) return;
+    const observer = new ResizeObserver(measureFont);
+    observer.observe(gridEl);
+    measureFont();
+    return () => observer.disconnect();
+  });
 
   function endSwipe(): void {
     swipe = null;
@@ -196,7 +218,12 @@
       <span class:sun={i === 0} class:sat={i === 6}>{name}</span>
     {/each}
   </div>
-  <div class="grid" bind:this={gridEl} onpointerdown={onGridDown} style:grid-template-rows={`repeat(${weeks.length}, minmax(0, 1fr))`}>
+  <div
+    class="grid"
+    bind:this={gridEl}
+    onpointerdown={onGridDown}
+    style:--cal-font={cellFont === null ? undefined : `${cellFont}px`}
+    style:grid-template-rows={`repeat(${weeks.length}, minmax(0, 1fr))`}>
     {#each weeks as week (week[0])}
       {#each week as day (day)}
         {@const item = blog.stored(day)}
@@ -317,10 +344,9 @@
     font-weight: 700;
     opacity: 0.75;
   }
-  /* 분야·주제 글자는 칸 안쪽 폭의 1/6 이다. 칸이 커지거나 작아져도 한글 6글자가 한 줄에 딱 들어간다.
-     큰 화면에서 지나치게 커지지 않도록 위쪽은 1.5rem 으로 막는다.
-     한 줄에 몇 글자를 넣을지는 --chars-per-line 하나로 바꾼다(작을수록 글자가 커진다). */
-  .cat, .topic { font-size: min(calc(100cqw / var(--chars-per-line)), 1.5rem); }
+  /* 분야·주제 글자 크기는 칸의 가로·세로에 맞춰 스크립트가 --cal-font 로 정한다(domain/cell-font.ts).
+     아직 재기 전이거나 값을 못 얻으면 칸 안쪽 폭의 1/6(한글 6글자)로 대신한다. */
+  .cat, .topic { font-size: var(--cal-font, min(calc(100cqw / var(--chars-per-line)), 1.5rem)); }
   .cat { opacity: 0.85; word-break: keep-all; overflow-wrap: anywhere; }
   .topic {
     font-weight: 700;

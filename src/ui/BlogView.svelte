@@ -149,12 +149,21 @@
     gap: 6px;
     margin-bottom: 6px;
   }
-  header button { padding: 0 12px; height: 38px; font-size: 0.9rem; }
+  /* 폭 360px 폰에서도 버튼 글자가 줄바꿈되지 않게, 모자라는 폭은 월 제목이 줄어서 맞춘다. */
+  header button { padding: 0 12px; height: 38px; font-size: 0.9rem; white-space: nowrap; flex-shrink: 0; }
   header button.icon { width: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 1.3rem; }
   header button.drag-hover { background: var(--accent); color: #0b1220; border-color: var(--accent); }
   .spacer { flex: 1; }
 
-  h1 { font-size: 1.1rem; margin: 0 4px; min-width: 5.5em; text-align: center; white-space: nowrap; }
+  /* 폭 380px 이하 폰: 버튼 간격과 크기를 조금 줄여 월 제목이 잘리지 않게 한다. */
+  @media (max-width: 380px) {
+    header { gap: 4px; }
+    header button { padding: 0 9px; }
+    header button.icon { width: 34px; }
+    h1 { font-size: 1rem; }
+  }
+
+  h1 { font-size: 1.1rem; margin: 0 2px; min-width: 0; text-align: center; white-space: nowrap; }
 
   .body { flex: 1; display: flex; min-height: 0; }
   /* 모바일형: 달력이 남는 화면 전체를 쓴다. */
