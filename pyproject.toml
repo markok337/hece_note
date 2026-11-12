@@ -1,7 +1,0 @@
-[project]
-name = "hece-note"
-version = "0.1.0"
-description = "개인용 PWA(블로그 스케줄표·가계부·냉장고 메모)의 로컬 보조 스크립트"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []
