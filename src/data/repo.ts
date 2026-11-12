@@ -7,6 +7,12 @@ import { supabase } from "../supabase";
 const DAY_COLUMNS = "day, category, assignee, topic, photo, writing, editing, related, reserved";
 const RULE_COLUMNS = "effective_from, anchor_day, cycle";
 
+/** 서버 행에서 앱이 쓰는 컬럼만 남긴다. 실시간 알림에는 user_id 같은 컬럼이 섞여 온다. */
+export function pickDay(row: BlogDay): BlogDay {
+  const { day, category, assignee, topic, photo, writing, editing, related, reserved } = row;
+  return { day, category, assignee, topic, photo, writing, editing, related, reserved };
+}
+
 function client() {
   if (!supabase) throw new Error("Supabase 설정이 비어 있다.");
   return supabase;
@@ -25,7 +31,7 @@ export async function fetchRules(): Promise<CategoryRule[]> {
 }
 
 export async function upsertDay(item: BlogDay): Promise<void> {
-  const { error } = await client().from("blog_days").upsert(item, { onConflict: "day" });
+  const { error } = await client().from("blog_days").upsert(pickDay(item), { onConflict: "day" });
   if (error) throw new Error(error.message);
 }
 
@@ -54,7 +60,7 @@ export function subscribeDays(
         if (old.day) onChange({ kind: "delete", day: old.day });
         return;
       }
-      const row = payload.new as BlogDay;
+      const row = pickDay(payload.new as BlogDay);
       onChange({ kind: "upsert", day: row.day, row });
     })
     .subscribe((status) => onStatus(status === "SUBSCRIBED"));
