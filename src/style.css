@@ -25,6 +25,10 @@
   --cell-dark-text: #0f172a;
   --today: #ea580c;
 
+  /* 냉장고 탭의 구역 바탕. 글자(--text, --muted)와 대비 6:1 이상이다. */
+  --zone-fridge: #e0f2fe;
+  --zone-freezer: #e0e7ff;
+
   /* 칸 하단의 "다음 단계" 표시. 어떤 칸 색 위에서도 눈에 띄도록 어두운 바탕에 밝은 노랑이다. */
   --step-bg: #0f172a;
   --step-text: #fde047;

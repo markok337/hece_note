@@ -4,6 +4,8 @@
 import type { Component } from "svelte";
 import BlogView from "./features/blog/BlogView.svelte";
 import { blog } from "./features/blog/store.svelte";
+import FridgeView from "./features/fridge/FridgeView.svelte";
+import { fridge } from "./features/fridge/store.svelte";
 
 export interface Feature {
   id: string;
@@ -26,6 +28,14 @@ export const FEATURES = [
     start: () => blog.start(),
     stop: () => blog.stop(),
     isLive: () => blog.live,
+  },
+  {
+    id: "fridge",
+    label: "냉장고",
+    view: FridgeView,
+    start: () => fridge.start(),
+    stop: () => fridge.stop(),
+    isLive: () => fridge.live,
   },
 ] as const satisfies readonly Feature[];
 
