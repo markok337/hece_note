@@ -8,17 +8,24 @@
   import ItemPanel from "./ui/ItemPanel.svelte";
   import Login from "./ui/Login.svelte";
 
-  const BUILD_ID = __BUILD_ID__;
+  const APP_VERSION = __APP_VERSION__;
+
+  // 드래그 중 이전/다음 달 버튼 위에 머물면 달이 넘어간다. 처음은 짧게, 이어서는 조금 느리게.
+  const NAV_DWELL_MS = 500;
+  const NAV_REPEAT_MS = 800;
 
   type Phase = "checking" | "config-missing" | "login" | "calendar";
+  type Nav = "prev" | "next";
 
   const today = todayYmd();
   const todayMonth: MonthRef = { year: parseYmd(today).year, month: parseYmd(today).month };
 
   let phase = $state<Phase>("checking");
   let month = $state<MonthRef>(todayMonth);
-  // 태블릿형은 항상 하나가 선택돼 있고, 모바일형은 누른 날짜가 모달로 열린다.
+  // 태블릿형은 항상 하나가 보이고(고르지 않았으면 오늘), 모바일형은 누른 날짜만 모달로 열린다.
   let selected = $state<string | null>(null);
+  let hoverNav = $state<Nav | null>(null);
+  let navTimer: ReturnType<typeof setTimeout> | undefined;
 
   const panelDay = $derived(viewport.isWide ? (selected ?? today) : selected);
 
@@ -53,9 +60,26 @@
     phase = "login";
   }
 
+  function step(nav: Nav): void {
+    month = shiftMonth(month, nav === "prev" ? -1 : 1);
+  }
+
+  /** 오늘이 있는 달로 돌아간다. 열린 아이템은 건드리지 않는다. */
   function goToday(): void {
     month = todayMonth;
-    selected = today;
+  }
+
+  /** 드래그 중인 아이템이 이전/다음 달 버튼 위에 있는지 받아 달을 넘긴다. */
+  function onNavHover(nav: Nav | null): void {
+    if (nav === hoverNav) return;
+    hoverNav = nav;
+    clearTimeout(navTimer);
+    if (!nav) return;
+    const tick = () => {
+      step(nav);
+      navTimer = setTimeout(tick, NAV_REPEAT_MS);
+    };
+    navTimer = setTimeout(tick, NAV_DWELL_MS);
   }
 
   function closeModal(): void {
@@ -72,22 +96,43 @@
     <Login onsuccess={enter} />
   {:else if phase === "calendar"}
     <header>
-      <div class="nav">
-        <button type="button" class="sub" aria-label="이전 달" onclick={() => (month = shiftMonth(month, -1))}>‹</button>
+      <button
+        type="button"
+        class="sub icon"
+        class:drag-hover={hoverNav === "prev"}
+        data-nav="prev"
+        aria-label="이전 달"
+        onclick={() => step("prev")}>‹</button
+      >
+      <div class="title">
         <h1>{month.year}년 {month.month}월</h1>
-        <button type="button" class="sub" aria-label="다음 달" onclick={() => (month = shiftMonth(month, 1))}>›</button>
-        <button type="button" class="sub" onclick={goToday}>오늘</button>
+        <span class="ver" class:live={blog.live}>v{APP_VERSION} · {blog.live ? "실시간" : "끊김"}</span>
       </div>
-      <div class="tools">
-        <span class="live" class:on={blog.live}>{blog.live ? "실시간" : "끊김"}</span>
-        <button type="button" class="sub" onclick={() => void blog.load()}>새로고침</button>
-        <button type="button" class="sub" onclick={logout}>로그아웃</button>
-      </div>
+      <button
+        type="button"
+        class="sub icon"
+        class:drag-hover={hoverNav === "next"}
+        data-nav="next"
+        aria-label="다음 달"
+        onclick={() => step("next")}>›</button
+      >
+      <button type="button" class="sub today" onclick={goToday}>오늘</button>
+      <span class="spacer"></span>
+      <button type="button" class="sub icon" aria-label="새로고침" onclick={() => void blog.load()}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
+        </svg>
+      </button>
+      <button type="button" class="sub icon" aria-label="로그아웃" onclick={logout}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" />
+        </svg>
+      </button>
     </header>
 
     <div class="body">
       <div class="cal">
-        <Calendar {month} {selected} onselect={(day) => (selected = day)} />
+        <Calendar {month} {selected} onselect={(day) => (selected = day)} onnavhover={onNavHover} />
       </div>
       {#if viewport.isWide && panelDay}
         <aside class="side">
@@ -115,8 +160,6 @@
         </div>
       </div>
     {/if}
-
-    <footer class="ver">빌드 {BUILD_ID}</footer>
   {/if}
 
   {#if blog.notice}
@@ -125,37 +168,43 @@
 </main>
 
 <style>
+  /* 앱 자체는 어떤 경우에도 스크롤하지 않는다. 남는 높이를 달력이 채운다. */
   main {
-    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 12px 0;
+    padding: calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 8px);
   }
   header {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 6px;
+    margin-bottom: 6px;
   }
-  .nav, .tools { display: flex; align-items: center; gap: 6px; }
-  h1 { font-size: 1.15rem; margin: 0 4px; min-width: 6.5em; text-align: center; }
-  header button { padding: 8px 12px; font-size: 0.9rem; }
+  header button { padding: 0 12px; height: 38px; font-size: 0.9rem; }
+  header button.icon { width: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+  header button.drag-hover { background: var(--accent); color: #0b1220; border-color: var(--accent); }
+  .spacer { flex: 1; }
+
+  .title { display: flex; flex-direction: column; align-items: center; line-height: 1.15; min-width: 5.5em; }
+  h1 { font-size: 1.1rem; margin: 0; white-space: nowrap; }
+  .ver { font-size: 0.65rem; color: var(--danger); white-space: nowrap; }
+  .ver.live { color: var(--muted); }
 
   .body { flex: 1; display: flex; min-height: 0; }
-  /* 모바일형: 달력을 화면 가운데에 둔다. */
-  .cal { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+  /* 모바일형: 달력이 남는 화면 전체를 쓴다. */
+  .cal { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
-  main.wide .body { gap: 16px; align-items: stretch; }
-  main.wide .cal { justify-content: flex-start; }
+  main.wide .body { gap: 12px; }
   .side {
-    width: 340px;
+    width: 320px;
     flex-shrink: 0;
-    padding: 16px;
+    padding: 14px;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 12px;
+    /* 항목이 화면에 다 들어가도록 줄여 두었지만, 아주 낮은 화면의 마지막 안전장치다. */
     overflow-y: auto;
   }
 
@@ -166,25 +215,26 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 12px;
     background: rgb(0 0 0 / 0.6);
   }
   .modal {
     position: relative;
     width: 100%;
-    max-width: 420px;
-    max-height: 90dvh;
+    max-width: 400px;
+    max-height: 100%;
     overflow-y: auto;
-    padding: 20px 16px 16px;
+    padding: 16px 14px 14px;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 12px;
   }
   .close { position: absolute; top: 8px; right: 8px; padding: 6px 10px; }
 
-  .live { font-size: 0.8rem; color: var(--danger); }
-  .live.on { color: var(--ok); }
-  .ver { margin-top: 8px; text-align: center; color: var(--muted); font-size: 0.75rem; }
+  @media (max-height: 520px) {
+    .side { width: 440px; padding: 10px 12px; }
+    .modal { max-width: 640px; }
+  }
 
   .toast {
     position: fixed;

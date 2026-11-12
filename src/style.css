@@ -24,8 +24,11 @@ body {
   background: var(--bg);
   color: var(--text);
   font: 16px/1.5 system-ui, -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
-  padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+  overflow: hidden;
+  overscroll-behavior: none;
 }
+
+html { height: 100%; overflow: hidden; }
 
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
 .card p { margin: 0 0 12px; color: var(--muted); font-size: 0.9rem; }

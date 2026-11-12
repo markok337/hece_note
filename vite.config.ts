@@ -1,26 +1,18 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import pkg from "./package.json" with { type: "json" };
 
 // GitHub Pages 하위 경로(/hece_note/)에 배포하므로 base를 맞춘다.
 const BASE_PATH = "/hece_note/";
 
-// 빌드마다 값이 달라지는 식별자. 화면에 표시해 어느 버전이 떠 있는지 확인한다.
-// GitHub 빌드 서버는 UTC라서 시간대를 서울로 고정해 "2026-11-11 23:05" 꼴로 만든다.
-const BUILD_ID = new Intl.DateTimeFormat("sv-SE", {
-  timeZone: "Asia/Seoul",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-}).format(new Date());
+// 화면에 표시하는 버전. package.json 의 version 이 원본이다(docs/decisions.md 의 버전 규칙 참고).
+const APP_VERSION = pkg.version;
 
 export default defineConfig({
   base: BASE_PATH,
   define: {
-    __BUILD_ID__: JSON.stringify(BUILD_ID),
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   plugins: [
     svelte(),

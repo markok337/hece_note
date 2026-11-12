@@ -1,20 +1,24 @@
 <script lang="ts">
   import { blog } from "../data/blog.svelte";
-  import { cellColor, hasContent, moveBlock, type CellColor } from "../domain/blog";
+  import { cellColor, hasContent, moveBlock } from "../domain/blog";
   import { monthGrid, parseYmd, todayYmd, type MonthRef } from "../domain/dates";
 
   interface Props {
     month: MonthRef;
     selected: string | null;
     onselect: (day: string) => void;
+    /** 드래그 중인 포인터가 이전/다음 달 버튼 위에 있으면 그 방향, 아니면 null. */
+    onnavhover: (nav: "prev" | "next" | null) => void;
   }
 
-  const { month, selected, onselect }: Props = $props();
+  const { month, selected, onselect, onnavhover }: Props = $props();
 
   const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
   const LONG_PRESS_MS = 350;
   const MOUSE_DRAG_PX = 6;
   const TOUCH_CANCEL_PX = 10;
+  // 포인터가 화면 위쪽(헤더)에 있으면 라벨을 위가 아니라 아래에 띄워 잘리지 않게 한다.
+  const GHOST_FLIP_Y = 60;
   const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b);
 
   const weeks = $derived(monthGrid(month));
@@ -37,7 +41,6 @@
   // 좁은 칸에서 "레시피,제품"이 단어 중간이 아니라 쉼표 뒤에서 줄바꿈되도록 한다.
   const wrapCategory = (category: string) => category.replace(",", `,${ZERO_WIDTH_SPACE}`);
 
-  const badge = (color: CellColor) => (color === "blue" ? "B" : color === "pink" ? "P" : "");
 
   function movable(day: string): boolean {
     const item = blog.stored(day);
@@ -49,9 +52,15 @@
     return el?.dataset.day ?? null;
   }
 
+  function navAt(x: number, y: number): "prev" | "next" | null {
+    const nav = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-nav]")?.dataset.nav;
+    return nav === "prev" || nav === "next" ? nav : null;
+  }
+
   function startDrag(x: number, y: number): void {
     if (!pending) return;
     drag = { from: pending.from, x, y, over: dayAt(x, y) };
+    onnavhover(navAt(x, y));
   }
 
   function endPending(): void {
@@ -84,6 +93,7 @@
     if (!pending || event.pointerId !== pending.pointerId) return;
     if (drag) {
       drag = { ...drag, x: event.clientX, y: event.clientY, over: dayAt(event.clientX, event.clientY) };
+      onnavhover(navAt(event.clientX, event.clientY));
       return;
     }
     const moved = Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY);
@@ -100,6 +110,7 @@
     const current = drag;
     endPending();
     drag = null;
+    onnavhover(null);
     if (!current) return;
     suppressClick = true;
     setTimeout(() => (suppressClick = false), 0);
@@ -110,6 +121,7 @@
   function onCancel(): void {
     endPending();
     drag = null;
+    onnavhover(null);
   }
 
   function onClick(day: string): void {
@@ -129,7 +141,7 @@
       <span class:sun={i === 0} class:sat={i === 6}>{name}</span>
     {/each}
   </div>
-  <div class="grid" style:grid-template-rows={`repeat(${weeks.length}, 1fr)`}>
+  <div class="grid" style:grid-template-rows={`repeat(${weeks.length}, minmax(0, 1fr))`}>
     {#each weeks as week (week[0])}
       {#each week as day (day)}
         {@const item = blog.stored(day)}
@@ -152,7 +164,7 @@
           oncontextmenu={(e) => e.preventDefault()}
         >
           <span class="num">{parseYmd(day).day}</span>
-          {#if badge(color)}<span class="badge">{badge(color)}</span>{/if}
+          {#if item?.assignee}<span class="badge">{item.assignee}</span>{/if}
           <span class="cat">{wrapCategory(view.category)}</span>
           {#if view.topic}<span class="topic">{view.topic}</span>{/if}
         </button>
@@ -163,7 +175,12 @@
 
 {#if drag}
   {@const dragged = blog.stored(drag.from)}
-  <div class="ghost {cellColor(dragged)}" style:left={`${drag.x}px`} style:top={`${drag.y}px`}>
+  <div
+    class="ghost {cellColor(dragged)}"
+    class:below={drag.y < GHOST_FLIP_Y}
+    style:left={`${drag.x}px`}
+    style:top={`${drag.y}px`}
+  >
     {dragged?.topic ?? dragged?.category}
   </div>
 {/if}
@@ -171,6 +188,7 @@
 <style>
   .calendar {
     width: 100%;
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -201,7 +219,7 @@
     align-items: stretch;
     gap: 1px;
     padding: 3px 4px;
-    min-height: 64px;
+    min-height: 0;
     text-align: left;
     font-weight: 400;
     font-size: 0.7rem;
@@ -229,17 +247,17 @@
     position: absolute;
     top: 3px;
     right: 4px;
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 700;
-    opacity: 0.7;
+    opacity: 0.75;
   }
   .cat { opacity: 0.85; word-break: keep-all; overflow-wrap: anywhere; }
   .topic {
     font-weight: 700;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     word-break: keep-all;
     overflow-wrap: anywhere;
@@ -256,12 +274,13 @@
     pointer-events: none;
     box-shadow: 0 4px 12px rgb(0 0 0 / 0.5);
   }
+  .ghost.below { transform: translate(-50%, 24px); }
   .ghost.gray { background: var(--cell-gray); color: var(--cell-gray-text); }
   .ghost.blue { background: var(--cell-blue); color: var(--cell-dark-text); }
   .ghost.pink { background: var(--cell-pink); color: var(--cell-dark-text); }
 
   @media (min-width: 720px) {
-    .cell { min-height: 84px; font-size: 0.8rem; padding: 4px 6px; }
+    .cell { font-size: 0.8rem; padding: 4px 6px; }
     .num { font-size: 0.9rem; }
   }
 </style>

@@ -82,81 +82,95 @@
 <section class="panel">
   <h2>{title}</h2>
 
-  <label class="field">
-    <span class="label">분야</span>
-    <select value={item.category} onchange={setCategory}>
-      {#each CATEGORIES as category (category)}
-        <option value={category}>{category}</option>
-      {/each}
-    </select>
-  </label>
+  <div class="cols">
+    <div class="col">
+      <label class="field">
+        <span class="label">분야</span>
+        <select value={item.category} onchange={setCategory}>
+          {#each CATEGORIES as category (category)}
+            <option value={category}>{category}</option>
+          {/each}
+        </select>
+      </label>
 
-  <div class="field">
-    <span class="label">담당</span>
-    <div class="seg">
-      {#each ASSIGNEES as who (who)}
-        <button
-          type="button"
-          class="sub"
-          class:on={item.assignee === who}
-          class:blue={who === "행이"}
-          class:pink={who === "챙이"}
-          aria-pressed={item.assignee === who}
-          onclick={() => pickAssignee(who)}
-        >
-          {who}
-        </button>
-      {/each}
+      <div class="field">
+        <span class="label">담당</span>
+        <div class="seg">
+          {#each ASSIGNEES as who (who)}
+            <button
+              type="button"
+              class="sub"
+              class:on={item.assignee === who}
+              class:blue={who === "행이"}
+              class:pink={who === "챙이"}
+              aria-pressed={item.assignee === who}
+              onclick={() => pickAssignee(who)}
+            >
+              {who}
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <label class="field">
+        <span class="label">주제</span>
+        <input
+          id="topic-input"
+          maxlength="80"
+          placeholder={item.assignee ? "주제를 적는다" : "담당을 먼저 고른다"}
+          disabled={!item.assignee}
+          bind:value={topicDraft}
+          onblur={commitTopic}
+          onkeydown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
+        />
+      </label>
     </div>
-  </div>
 
-  <label class="field">
-    <span class="label">주제</span>
-    <input
-      id="topic-input"
-      maxlength="80"
-      placeholder={item.assignee ? "주제를 적는다" : "담당을 먼저 고른다"}
-      disabled={!item.assignee}
-      bind:value={topicDraft}
-      onblur={commitTopic}
-      onkeydown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
-    />
-  </label>
+    <div class="col">
+      <div class="checks">
+        {#each CHECKS as key (key)}
+          {@const locked = checkToggleBlock(item, key)}
+          <button
+            type="button"
+            class="check"
+            class:on={item[key]}
+            class:locked={locked !== null}
+            aria-pressed={item[key]}
+            title={locked ?? ""}
+            onclick={() => toggle(key)}
+          >
+            <span class="box">{item[key] ? "✓" : ""}</span>
+            {CHECK_LABELS[key]}
+          </button>
+        {/each}
+      </div>
 
-  <div class="checks">
-    {#each CHECKS as key (key)}
-      {@const locked = checkToggleBlock(item, key)}
-      <button
-        type="button"
-        class="check"
-        class:on={item[key]}
-        class:locked={locked !== null}
-        aria-pressed={item[key]}
-        title={locked ?? ""}
-        onclick={() => toggle(key)}
-      >
-        <span class="box">{item[key] ? "✓" : ""}</span>
-        {CHECK_LABELS[key]}
-      </button>
-    {/each}
-  </div>
-
-  <div class="field move">
-    <span class="label">다른 날짜로 이동</span>
-    <div class="row">
-      <input type="date" bind:value={moveTarget} />
-      <button type="button" class="sub" disabled={!moveTarget} onclick={moveTo}>옮기기</button>
+      <div class="field move">
+        <span class="label">다른 날짜로 이동</span>
+        <div class="row">
+          <input type="date" bind:value={moveTarget} />
+          <button type="button" class="sub" disabled={!moveTarget} onclick={moveTo}>옮기기</button>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
 <style>
-  .panel { display: flex; flex-direction: column; gap: 16px; }
-  h2 { margin: 0; font-size: 1.15rem; }
-  .field { display: flex; flex-direction: column; gap: 6px; }
-  .label { color: var(--muted); font-size: 0.85rem; }
+  .panel { display: flex; flex-direction: column; gap: 10px; }
+  .cols, .col { display: flex; flex-direction: column; gap: 10px; }
+
+  /* 낮은 화면(폰을 가로로 눕힌 경우 등)에서는 두 열로 나눠 세로 길이를 줄인다. */
+  @media (max-height: 520px) {
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+    .panel { gap: 6px; }
+    .col { gap: 8px; }
+  }
+  h2 { margin: 0; font-size: 1.05rem; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .label { color: var(--muted); font-size: 0.8rem; }
   select {
-    padding: 12px;
+    padding: 9px 10px;
     font-size: 1rem;
     background: var(--bg);
     color: var(--text);
@@ -164,16 +178,18 @@
     border-radius: 8px;
   }
   .seg { display: flex; gap: 8px; }
+  .seg button { padding: 9px 12px; }
   .seg button { flex: 1; }
   .seg button.on.blue { background: var(--cell-blue); color: var(--cell-dark-text); border-color: transparent; font-weight: 700; }
   .seg button.on.pink { background: var(--cell-pink); color: var(--cell-dark-text); border-color: transparent; font-weight: 700; }
 
-  .checks { display: flex; flex-direction: column; gap: 8px; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .check {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px;
+    gap: 8px;
+    padding: 9px 10px;
+    font-size: 0.95rem;
     text-align: left;
     font-weight: 400;
     color: var(--text);
@@ -196,5 +212,8 @@
   .check.on .box { background: var(--accent); border-color: var(--accent); color: #0b1220; }
 
   .move { padding-top: 8px; border-top: 1px solid var(--line); }
+  .row input { padding: 9px 10px; }
+  .row button { padding: 9px 14px; }
+  .panel :global(input) { padding: 9px 10px; }
   .row { display: flex; gap: 8px; }
 </style>
