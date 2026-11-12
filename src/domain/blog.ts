@@ -121,6 +121,24 @@ export function cellColor(item: BlogDay | null): CellColor {
   return "white";
 }
 
+/** 칸이 좁아서 단계 이름을 두 글자로 줄인 것. */
+const STEP_SHORT_LABELS: Record<CheckKey, string> = {
+  photo: "촬영",
+  writing: "작성",
+  editing: "보정",
+  related: "연관",
+  reserved: "예약",
+};
+
+/** 지금 해야 할 다음 단계의 짧은 이름. 시작도 안 한 날짜와 모두 끝난 날짜는 null. */
+export function nextStep(item: BlogDay): string | null {
+  if (!hasContent(item)) return null;
+  if (item.assignee === null) return "담당";
+  if (item.topic === null) return "주제";
+  const pending = CHECKS.find((key) => !item[key]);
+  return pending ? STEP_SHORT_LABELS[pending] : null;
+}
+
 /** 칸에 붙이는 글자. 하늘색은 "행이", 분홍은 "챙이"다. 담당이 아니라 지금 칸 색을 따른다. */
 export function colorLabel(color: CellColor): string {
   if (color === "blue") return "행이";

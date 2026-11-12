@@ -1,6 +1,6 @@
 <script lang="ts">
   import { blog } from "../data/blog.svelte";
-  import { cellColor, colorLabel, hasContent, moveBlock } from "../domain/blog";
+  import { cellColor, colorLabel, hasContent, moveBlock, nextStep } from "../domain/blog";
   import { monthGrid, parseYmd, todayYmd, type MonthRef } from "../domain/dates";
 
   interface Props {
@@ -148,6 +148,7 @@
         {@const view = blog.view(day)}
         {@const color = cellColor(item)}
         {@const drop = dropState(day)}
+        {@const step = item ? nextStep(item) : null}
         <button
           type="button"
           class="cell {color}"
@@ -167,6 +168,7 @@
           {#if colorLabel(color)}<span class="badge">{colorLabel(color)}</span>{/if}
           <span class="cat">{wrapCategory(view.category)}</span>
           {#if view.topic}<span class="topic">{view.topic}</span>{/if}
+          {#if step}<span class="step" title={`다음 단계: ${step}`}>→{step}</span>{/if}
         </button>
       {/each}
     {/each}
@@ -266,6 +268,22 @@
     overflow-wrap: anywhere;
   }
 
+  /* 칸 맨 아래에 붙는 다음 단계. 색 위에서 가장 눈에 띄는 표시다. */
+  .step {
+    margin-top: auto;
+    align-self: flex-start;
+    flex-shrink: 0;
+    max-width: 100%;
+    padding: 1px 3px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--step-text);
+    background: var(--step-bg);
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
   .ghost {
     position: fixed;
     z-index: 100;
@@ -285,6 +303,7 @@
 
   @media (min-width: 720px) {
     .cell { font-size: 0.8rem; padding: 4px 6px; }
+    .step { padding: 1px 6px; font-size: 0.75rem; }
     .num { font-size: 0.9rem; }
   }
 </style>

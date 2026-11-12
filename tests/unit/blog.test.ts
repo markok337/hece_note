@@ -7,6 +7,7 @@ import {
   defaultCategory,
   emptyDay,
   moveBlock,
+  nextStep,
   validate,
   type BlogDay,
   type CategoryRule,
@@ -179,5 +180,42 @@ describe("colorLabel", () => {
   it("행이 담당이 글작성 단계(분홍)에 있으면 챙이로 표시된다", () => {
     const item = day({ assignee: "행이", topic: "a", photo: true, writing: true });
     expect(colorLabel(cellColor(item))).toBe("챙이");
+  });
+});
+
+describe("nextStep", () => {
+  it("시작도 안 한 날짜는 표시하지 않는다", () => {
+    expect(nextStep(day())).toBeNull();
+  });
+
+  it("담당만 있으면 주제가 남았다", () => {
+    expect(nextStep(day({ assignee: "행이" }))).toBe("주제");
+  });
+
+  it("주제까지 있으면 사진 촬영이 남았다", () => {
+    expect(nextStep(day({ assignee: "행이", topic: "a" }))).toBe("촬영");
+  });
+
+  it("앞 단계를 끝낼수록 다음 단계가 하나씩 넘어간다", () => {
+    const base = { assignee: "챙이" as const, topic: "a" };
+    expect(nextStep(day({ ...base, photo: true }))).toBe("작성");
+    expect(nextStep(day({ ...base, photo: true, writing: true }))).toBe("보정");
+    expect(nextStep(day({ ...base, photo: true, writing: true, editing: true }))).toBe("연관");
+    expect(
+      nextStep(day({ ...base, photo: true, writing: true, editing: true, related: true })),
+    ).toBe("예약");
+  });
+
+  it("모두 끝났으면 표시하지 않는다", () => {
+    const done = day({
+      assignee: "행이",
+      topic: "a",
+      photo: true,
+      writing: true,
+      editing: true,
+      related: true,
+      reserved: true,
+    });
+    expect(nextStep(done)).toBeNull();
   });
 });

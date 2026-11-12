@@ -17,6 +17,10 @@
   --cell-gray-text: #f3f4f6;
   --cell-dark-text: #0b1220;
   --today: #facc15;
+
+  /* 칸 하단의 "다음 단계" 표시. 어떤 칸 색 위에서도 눈에 띄도록 어두운 바탕에 밝은 노랑이다. */
+  --step-bg: #0b1220;
+  --step-text: #fde047;
 }
 
 * { box-sizing: border-box; }
