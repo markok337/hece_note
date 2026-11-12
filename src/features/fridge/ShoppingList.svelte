@@ -58,21 +58,25 @@
 </section>
 
 <style>
-  .shop { display: flex; flex-direction: column; gap: 8px; }
+  .shop { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 
   /* 오른쪽 위의 닫기 버튼을 피해 한 줄로 둔다. */
-  .title { display: flex; align-items: baseline; gap: 8px; padding-right: 36px; min-height: 30px; }
+  .title { flex-shrink: 0; display: flex; align-items: baseline; gap: 8px; padding-right: 36px; min-height: 30px; }
   h2 { margin: 0; font-size: 1.05rem; }
   .sum { font-size: 0.8rem; color: var(--muted); }
   .clear { margin-left: auto; padding: 4px 10px; font-size: 0.8rem; }
 
   /* 입력과 추가를 한 줄에 붙여 영역을 최소로 쓴다. */
-  .add { gap: 6px; }
+  .add { flex-shrink: 0; gap: 6px; }
   .add input { padding: 8px 10px; }
   .add button { padding: 8px 14px; }
 
   /* 항목은 두 열로 촘촘하게 놓아 한눈에 보이게 한다. */
   ul {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    align-content: start;
     list-style: none;
     margin: 0;
     padding: 0;

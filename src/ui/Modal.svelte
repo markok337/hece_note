@@ -4,11 +4,13 @@
 
   interface Props {
     label: string;
+    /** true 면 안의 내용이 늘고 줄어도 창 크기가 변하지 않는다(안쪽 목록이 스크롤). */
+    fixed?: boolean;
     onclose: () => void;
     children: Snippet;
   }
 
-  const { label, onclose, children }: Props = $props();
+  const { label, fixed = false, onclose, children }: Props = $props();
 
   let modalEl = $state<HTMLDivElement>();
 
@@ -46,6 +48,7 @@
 <div class="backdrop" role="presentation" onclick={onclose}>
   <div
     class="modal"
+    class:fixed
     role="dialog"
     aria-modal="true"
     aria-label={label}
@@ -83,6 +86,8 @@
     border-radius: 12px;
     box-shadow: 0 8px 24px rgb(15 23 42 / 0.25);
   }
+  /* 높이를 고정하고 안쪽 내용이 남는 자리를 채운다. 내용이 많으면 목록만 스크롤한다. */
+  .modal.fixed { height: min(560px, 100%); display: flex; flex-direction: column; overflow: hidden; }
   .close { position: absolute; top: 8px; right: 8px; padding: 6px 10px; }
 
   @media (max-height: 520px) {

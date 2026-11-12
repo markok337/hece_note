@@ -21,12 +21,31 @@
 
   const { compartment }: Props = $props();
 
+  /** 삭제 버튼을 한 번 누른 뒤 이 시간 안에 한 번 더 눌러야 지워진다. */
+  const CONFIRM_MS = 3000;
+
   const items = $derived(fridge.itemsIn(compartment));
 
   let name = $state("");
   let addedOn = $state(clock.today);
   let quantityText = $state("");
   let nameInput = $state<HTMLInputElement>();
+  let confirmingId = $state<string | null>(null);
+  let confirmTimer: ReturnType<typeof setTimeout> | undefined;
+
+  $effect(() => () => clearTimeout(confirmTimer));
+
+  /** 삭제는 두 번 눌러야 한다. 첫 번째는 버튼을 빨간 "삭제"로 바꾸기만 한다. */
+  function askRemove(item: FridgeItem): void {
+    clearTimeout(confirmTimer);
+    if (confirmingId === item.id) {
+      confirmingId = null;
+      void fridge.removeItem(item.id);
+      return;
+    }
+    confirmingId = item.id;
+    confirmTimer = setTimeout(() => (confirmingId = null), CONFIRM_MS);
+  }
 
   function add(event: SubmitEvent): void {
     event.preventDefault();
@@ -145,7 +164,16 @@
               onclick={() => setQuantity(item, increase(item.quantity))}>+</button
             >
           </span>
-          <button type="button" class="sub del" aria-label="{item.name} 삭제" onclick={() => void fridge.removeItem(item.id)}>✕</button>
+          <button
+            type="button"
+            class="sub del"
+            class:confirm={confirmingId === item.id}
+            aria-label={confirmingId === item.id ? `${item.name} 삭제 확인` : `${item.name} 삭제`}
+            onclick={() => askRemove(item)}
+            onblur={() => confirmingId === item.id && (confirmingId = null)}
+          >
+            {confirmingId === item.id ? "삭제" : "✕"}
+          </button>
         </li>
       {/each}
     </ul>
@@ -153,11 +181,12 @@
 </section>
 
 <style>
-  .panel { display: flex; flex-direction: column; gap: 8px; }
-  h2 { margin: 0; font-size: 1.05rem; }
+  /* 창 크기가 고정이라 패널이 남는 자리를 채우고, 재료 목록만 안에서 스크롤한다. */
+  .panel { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+  h2 { flex-shrink: 0; margin: 0; font-size: 1.05rem; }
 
   /* 이름 · 날짜 · 개수 · 추가 버튼을 한 줄에 둔다. 폭이 좁으니 칸 사이와 안쪽 여백을 줄였다. */
-  .add { display: flex; gap: 3px; }
+  .add { flex-shrink: 0; display: flex; gap: 3px; }
   .add input { padding: 8px 4px; font-size: 0.85rem; }
   .add button { flex-shrink: 0; padding: 8px 9px; font-size: 0.85rem; }
   /* 입력 세 칸은 폭이 같고, 추가 버튼만 제 크기를 쓴다. 날짜 칸은 폭이 좁아 글자를 조금 줄였다. */
@@ -165,7 +194,7 @@
   .add .date-input { font-size: 0.75rem; padding-left: 2px; padding-right: 2px; }
   .qty-input { text-align: center; }
 
-  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  ul { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   /* 재료 하나는 한 줄이다: 이름 · 날짜(+지난 날수) · 개수 · 삭제. */
   li { display: flex; align-items: center; gap: 4px; padding: 5px 0; border-top: 1px solid var(--line); }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -184,7 +213,10 @@
   .picker { position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; padding: 0; opacity: 0; pointer-events: none; }
 
   .stepper { flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px; }
-  .step, .del { width: 28px; height: 30px; padding: 0; font-size: 1rem; line-height: 1; }
+  .step { width: 28px; height: 30px; padding: 0; font-size: 1rem; line-height: 1; }
+  /* 개수 버튼과 떨어뜨려 잘못 누르지 않게 한다. 확인 상태에서도 폭이 같아 줄이 흔들리지 않는다. */
+  .del { flex-shrink: 0; width: 42px; height: 30px; margin-left: 10px; padding: 0; font-size: 0.85rem; line-height: 1; }
+  .del.confirm { color: var(--accent-text); background: var(--danger); border-color: var(--danger); font-weight: 700; }
   .qty { flex: none; width: 40px; padding: 5px 2px; font-size: 0.95rem; text-align: center; }
 
   .empty { margin: 0; color: var(--muted); font-size: 0.9rem; }

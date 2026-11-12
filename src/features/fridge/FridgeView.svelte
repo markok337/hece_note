@@ -70,7 +70,7 @@
   </div>
 
   {#if !viewport.isWide && panelCompartment}
-    <Modal label={compartmentTitle(panelCompartment)} onclose={() => (selected = null)}>
+    <Modal fixed label={compartmentTitle(panelCompartment)} onclose={() => (selected = null)}>
       {#key panelCompartment}
         <CompartmentPanel compartment={panelCompartment} />
       {/key}
@@ -78,7 +78,7 @@
   {/if}
 
   {#if shoppingOpen}
-    <Modal label="구매목록" onclose={() => (shoppingOpen = false)}>
+    <Modal fixed label="구매목록" onclose={() => (shoppingOpen = false)}>
       <ShoppingList />
     </Modal>
   {/if}
@@ -131,7 +131,9 @@
     border: 1px solid var(--line);
     border-radius: 12px;
     box-shadow: var(--shadow);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   @media (max-height: 520px) {
