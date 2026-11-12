@@ -12,6 +12,7 @@ import {
   type CategoryRule,
 } from "../domain/blog";
 import { fetchDays, fetchRules, moveDay, subscribeDays, unsubscribe, upsertDay } from "./repo";
+import { WriteQueue } from "./write-queue";
 
 export interface Notice {
   kind: "ok" | "err";
@@ -28,6 +29,8 @@ class BlogStore {
   notice = $state<Notice | null>(null);
 
   #channel: RealtimeChannel | null = null;
+  // 쓰는 동안 들어온 실시간 알림은 내 최신 상태보다 오래된 값일 수 있어 무시하고, 끝나면 한 번 다시 불러온다.
+  #writes = new WriteQueue(() => void this.load());
   #noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** 저장된 아이템. 한 번도 건드린 적 없는 날짜는 null. */
@@ -47,6 +50,11 @@ class BlogStore {
   }
 
   async load(): Promise<void> {
+    if (this.#writes.busy) {
+      // 지금 불러오면 방금 바꾼 화면이 서버의 옛 값으로 덮인다. 쓰기가 끝난 뒤에 불러온다.
+      this.#writes.markDirty();
+      return;
+    }
     try {
       const [rows, rules] = await Promise.all([fetchDays(), fetchRules()]);
       this.days = Object.fromEntries(rows.map((row) => [row.day, row]));
@@ -61,6 +69,10 @@ class BlogStore {
     await this.load();
     this.#channel = subscribeDays(
       (change) => {
+        if (this.#writes.busy) {
+          this.#writes.markDirty();
+          return;
+        }
         if (change.kind === "delete") {
           const { [change.day]: _removed, ...rest } = this.days;
           this.days = rest;
@@ -84,24 +96,18 @@ class BlogStore {
     this.days = {};
   }
 
-  /** 아이템 하나를 바꿔 저장한다. 잠금 규칙을 어기면 저장하지 않고 이유를 알린다. */
+  /** 아이템 하나를 바꿔 저장한다. 화면은 먼저 바꾸고, 서버에는 누른 순서대로 보낸다. */
   async save(next: BlogDay): Promise<boolean> {
     const reason = validate(next);
     if (reason) {
       this.say("err", reason);
       return false;
     }
-    const prev = this.days[next.day];
     this.days[next.day] = next;
-    try {
-      await upsertDay(next);
-      return true;
-    } catch (err) {
-      if (prev) this.days[next.day] = prev;
-      else delete this.days[next.day];
-      this.say("err", `저장 실패: ${(err as Error).message}`);
-      return false;
-    }
+    return this.#writes.run(
+      () => upsertDay(next),
+      (err) => this.say("err", `저장 실패: ${(err as Error).message}`),
+    );
   }
 
   async patch(day: string, change: Partial<Omit<BlogDay, "day">>): Promise<boolean> {
@@ -115,22 +121,14 @@ class BlogStore {
       this.say("err", reason);
       return false;
     }
-    const src = this.stored(from)!;
-    const prevFrom = this.days[from];
-    const prevTo = this.days[to];
-    const { moved, vacated } = applyMove(src, to);
+    const { moved, vacated } = applyMove(this.stored(from)!, to);
     this.days[to] = moved;
     this.days[from] = vacated;
-    try {
-      await moveDay(from, to);
-      return true;
-    } catch (err) {
-      this.days[from] = prevFrom;
-      if (prevTo) this.days[to] = prevTo;
-      else delete this.days[to];
-      this.say("err", `이동 실패: ${(err as Error).message}`);
-      return false;
-    }
+    // 실패하면 쓰기가 끝난 뒤 서버 값으로 다시 맞춘다.
+    return this.#writes.run(
+      () => moveDay(from, to),
+      (err) => this.say("err", `이동 실패: ${(err as Error).message}`),
+    );
   }
 }
 
