@@ -12,9 +12,11 @@
   /* 달력 칸 색. 칸은 항상 이 셋 중 하나다. */
   --cell-blue: #7dd3fc;
   --cell-pink: #f9a8d4;
+  --cell-white: #f3f4f6;
   --cell-gray: #4b5563;
   --cell-gray-text: #f3f4f6;
   --cell-dark-text: #0b1220;
+  --today: #facc15;
 }
 
 * { box-sizing: border-box; }

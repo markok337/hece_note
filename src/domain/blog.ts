@@ -39,7 +39,7 @@ export interface CategoryRule {
   cycle: Category[];
 }
 
-export type CellColor = "gray" | "blue" | "pink";
+export type CellColor = "white" | "gray" | "blue" | "pink";
 
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 
@@ -110,15 +110,15 @@ export function topicClearBlock(item: BlogDay): string | null {
   return item.photo ? "사진촬영을 먼저 해제한다." : null;
 }
 
-/** 칸 색. 예약 > 글보정 > 글작성 > 담당 > 분야만. 칸은 항상 한 가지 색이다. */
+/** 칸 색. 예약(회색) > 글보정 > 글작성 > 담당 > 분야만(흰색). 칸은 항상 한 가지 색이다. */
 export function cellColor(item: BlogDay | null): CellColor {
-  if (item === null) return "gray";
+  if (item === null) return "white";
   if (item.reserved) return "gray";
   if (item.editing) return "blue";
   if (item.writing) return "pink";
   if (item.assignee === "행이") return "blue";
   if (item.assignee === "챙이") return "pink";
-  return "gray";
+  return "white";
 }
 
 /** 날짜 이동이 가능한지. 불가능하면 이유를 돌려준다. */

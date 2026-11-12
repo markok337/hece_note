@@ -104,10 +104,7 @@
         aria-label="이전 달"
         onclick={() => step("prev")}>‹</button
       >
-      <div class="title">
-        <h1>{month.year}년 {month.month}월</h1>
-        <span class="ver" class:live={blog.live}>v{APP_VERSION} · {blog.live ? "실시간" : "끊김"}</span>
-      </div>
+      <h1>{month.year}년 {month.month}월</h1>
       <button
         type="button"
         class="sub icon"
@@ -143,6 +140,8 @@
       {/if}
     </div>
 
+    <footer class="ver" class:live={blog.live}>v{APP_VERSION} · {blog.live ? "실시간" : "끊김"}</footer>
+
     {#if !viewport.isWide && panelDay}
       <div class="backdrop" role="presentation" onclick={closeModal}>
         <div
@@ -170,7 +169,8 @@
 <style>
   /* 앱 자체는 어떤 경우에도 스크롤하지 않는다. 남는 높이를 달력이 채운다. */
   main {
-    height: 100dvh;
+    /* 실제 보이는 높이. 값을 못 얻는 환경이면 100dvh 로 대신한다. */
+    height: var(--app-height, 100dvh);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -187,9 +187,18 @@
   header button.drag-hover { background: var(--accent); color: #0b1220; border-color: var(--accent); }
   .spacer { flex: 1; }
 
-  .title { display: flex; flex-direction: column; align-items: center; line-height: 1.15; min-width: 5.5em; }
-  h1 { font-size: 1.1rem; margin: 0; white-space: nowrap; }
-  .ver { font-size: 0.65rem; color: var(--danger); white-space: nowrap; }
+  h1 { font-size: 1.1rem; margin: 0 4px; min-width: 5.5em; text-align: center; white-space: nowrap; }
+
+  /* 우하단 버전 줄. 달력은 이 줄 위까지만 차지한다. */
+  .ver {
+    flex-shrink: 0;
+    margin-top: 4px;
+    text-align: right;
+    font-size: 0.65rem;
+    line-height: 1.2;
+    color: var(--danger);
+    white-space: nowrap;
+  }
   .ver.live { color: var(--muted); }
 
   .body { flex: 1; display: flex; min-height: 0; }

@@ -103,9 +103,9 @@ describe("checkToggleBlock", () => {
 });
 
 describe("cellColor", () => {
-  it("분야만 있으면 회색이다", () => {
-    expect(cellColor(day())).toBe("gray");
-    expect(cellColor(null)).toBe("gray");
+  it("분야만 있으면 흰색이다", () => {
+    expect(cellColor(day())).toBe("white");
+    expect(cellColor(null)).toBe("white");
   });
 
   it("담당에 따라 행이는 파랑, 챙이는 분홍이다", () => {

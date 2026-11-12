@@ -232,11 +232,14 @@
     -webkit-touch-callout: none;
   }
   .cell.movable { touch-action: none; cursor: grab; }
+  .cell.white { background: var(--cell-white); color: var(--cell-dark-text); }
   .cell.gray { background: var(--cell-gray); color: var(--cell-gray-text); }
   .cell.blue { background: var(--cell-blue); color: var(--cell-dark-text); }
   .cell.pink { background: var(--cell-pink); color: var(--cell-dark-text); }
   .cell.other { opacity: 0.45; }
-  .cell.today { border-color: var(--text); }
+  /* 다른 달의 빈 칸은 색을 채우지 않는다. 투명도만 주면 예약(회색)과 헷갈린다. */
+  .cell.other.white { opacity: 1; background: transparent; color: var(--muted); border-color: var(--line); }
+  .cell.today { border-color: var(--today); }
   .cell.selected { box-shadow: 0 0 0 2px var(--accent); }
   .cell.dragging { opacity: 0.4; }
   .cell.drop-ok { border-color: var(--ok); }
@@ -275,6 +278,7 @@
     box-shadow: 0 4px 12px rgb(0 0 0 / 0.5);
   }
   .ghost.below { transform: translate(-50%, 24px); }
+  .ghost.white { background: var(--cell-white); color: var(--cell-dark-text); }
   .ghost.gray { background: var(--cell-gray); color: var(--cell-gray-text); }
   .ghost.blue { background: var(--cell-blue); color: var(--cell-dark-text); }
   .ghost.pink { background: var(--cell-pink); color: var(--cell-dark-text); }
