@@ -1,0 +1,65 @@
+// blog_days / blog_category_rules 접근. Supabase 호출은 이 파일에만 둔다.
+
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { BlogDay, CategoryRule } from "../domain/blog";
+import { supabase } from "../supabase";
+
+const DAY_COLUMNS = "day, category, assignee, topic, photo, writing, editing, related, reserved";
+const RULE_COLUMNS = "effective_from, anchor_day, cycle";
+
+function client() {
+  if (!supabase) throw new Error("Supabase 설정이 비어 있다.");
+  return supabase;
+}
+
+export async function fetchDays(): Promise<BlogDay[]> {
+  const { data, error } = await client().from("blog_days").select(DAY_COLUMNS);
+  if (error) throw new Error(error.message);
+  return data as BlogDay[];
+}
+
+export async function fetchRules(): Promise<CategoryRule[]> {
+  const { data, error } = await client().from("blog_category_rules").select(RULE_COLUMNS);
+  if (error) throw new Error(error.message);
+  return data as CategoryRule[];
+}
+
+export async function upsertDay(item: BlogDay): Promise<void> {
+  const { error } = await client().from("blog_days").upsert(item, { onConflict: "day" });
+  if (error) throw new Error(error.message);
+}
+
+export async function moveDay(from: string, to: string): Promise<void> {
+  const { error } = await client().rpc("move_blog_day", { p_from: from, p_to: to });
+  if (error) throw new Error(error.message);
+}
+
+export interface DayChange {
+  kind: "upsert" | "delete";
+  day: string;
+  row?: BlogDay;
+}
+
+/** 다른 기기의 변경을 받는다. 상태 콜백은 연결/끊김마다 불린다. */
+export function subscribeDays(
+  onChange: (change: DayChange) => void,
+  onStatus: (isLive: boolean) => void,
+): RealtimeChannel {
+  const supa = client();
+  return supa
+    .channel("blog_days_feed")
+    .on("postgres_changes", { event: "*", schema: "public", table: "blog_days" }, (payload) => {
+      if (payload.eventType === "DELETE") {
+        const old = payload.old as Partial<BlogDay>;
+        if (old.day) onChange({ kind: "delete", day: old.day });
+        return;
+      }
+      const row = payload.new as BlogDay;
+      onChange({ kind: "upsert", day: row.day, row });
+    })
+    .subscribe((status) => onStatus(status === "SUBSCRIBED"));
+}
+
+export async function unsubscribe(channel: RealtimeChannel): Promise<void> {
+  await client().removeChannel(channel);
+}

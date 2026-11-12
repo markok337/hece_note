@@ -47,10 +47,13 @@
 
    `SUPABASE_SECRET_KEY`와 `SUPABASE_DB_URL`은 GitHub에 올리지 않는다.
 
-## 5. 토이 앱용 테이블 만들기
+## 5. 테이블 만들기
 
-Supabase 웹 > SQL Editor > New query 에 `supabase/schema.sql` 내용을 통째로 붙여 넣고 Run 한다.
+Supabase 웹 > SQL Editor > New query 에 아래 두 파일을 하나씩 통째로 붙여 넣고 Run 한다.
 여러 번 실행해도 안전하다.
+
+- `supabase/schema.sql`: 접속 기록 테이블. 화면에서는 더 쓰지 않지만, Supabase 일시정지 방지 작업(`keepalive`)이 이 테이블을 조회하므로 만들어 둔다.
+- `supabase/blog_schema.sql`: 블로그 스케줄 달력 테이블. 사용자(3단계)를 먼저 만들어 둬야 한다. 분야 순환 규칙의 첫 행이 그 사용자의 것으로 들어간다.
 
 ## 6. 기기에 설치하기
 
@@ -59,12 +62,12 @@ Supabase 웹 > SQL Editor > New query 에 `supabase/schema.sql` 내용을 통째
 - **갤럭시 S26, 폴드8, 탭 S9+**: Chrome에서 주소를 열고 메뉴(⋮) > "앱 설치".
 - **데스크톱, 노트북**: Chrome이나 Edge에서 주소를 열고 주소창 오른쪽의 설치 아이콘.
 
-설치한 앱을 열면 개인 키를 한 번 묻는다. 그 뒤 "여기서 접속함"을 눌러 다른 기기 화면에 바로 뜨는지 확인한다.
+설치한 앱을 열면 개인 키를 한 번 묻는다. 그 뒤 달력이 뜬다. 한 기기에서 날짜를 고치면 다른 기기 화면에 바로 반영되는지 확인한다.
 
 ## 7. 다 했는지 확인
 
 - [ ] `.env`의 다섯 칸이 모두 채워졌다
-- [ ] `schema.sql`을 실행했다
+- [ ] `schema.sql`과 `blog_schema.sql`을 실행했다
 - [ ] 가입 허용이 꺼져 있다
 - [ ] 사용자가 정확히 한 명이다
 - [ ] GitHub Pages 소스가 GitHub Actions다

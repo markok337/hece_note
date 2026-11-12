@@ -1,3 +1,4 @@
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -22,6 +23,7 @@ export default defineConfig({
     __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
   plugins: [
+    svelte(),
     VitePWA({
       // 새 서비스 워커를 받으면 즉시 활성화하고 열린 화면을 새 버전으로 교체한다.
       registerType: "autoUpdate",
