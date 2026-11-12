@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromDayNumber, dayNumber, monthGrid, shiftMonth, weekday } from "../../src/domain/dates";
+import { fromDayNumber, dayNumber, monthGrid, shiftMonth, weekday } from "../../src/core/dates";
 
 describe("dates", () => {
   it("날짜 → 일수 → 날짜로 되돌아온다", () => {

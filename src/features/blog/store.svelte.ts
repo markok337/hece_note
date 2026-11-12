@@ -10,30 +10,23 @@ import {
   validate,
   type BlogDay,
   type CategoryRule,
-} from "../domain/blog";
+} from "./domain";
 import { fetchDays, fetchRules, moveDay, subscribeDays, unsubscribe, upsertDay } from "./repo";
-import { WriteQueue } from "./write-queue";
+import { notice } from "../../core/notice.svelte";
+import { WriteQueue } from "../../core/write-queue";
 
-export interface Notice {
-  kind: "ok" | "err";
-  text: string;
-}
-
-const NOTICE_MS = 4000;
 const NOT_LOADED_MESSAGE = "아직 불러오지 못했다. 새로고침 후 다시 시도한다.";
-const NO_RULES_MESSAGE = "분야 순환 규칙이 없다. supabase/blog_schema.sql 을 실행했는지 확인한다.";
+const NO_RULES_MESSAGE = "분야 순환 규칙이 없다. supabase/migrations/0002_blog.sql 을 실행했는지 확인한다.";
 
 class BlogStore {
   days = $state<Record<string, BlogDay>>({});
   rules = $state<CategoryRule[]>([]);
   loaded = $state(false);
   live = $state(false);
-  notice = $state<Notice | null>(null);
 
   #channel: RealtimeChannel | null = null;
   // 쓰는 동안 들어온 실시간 알림은 내 최신 상태보다 오래된 값일 수 있어 무시하고, 끝나면 한 번 다시 불러온다.
   #writes = new WriteQueue(() => void this.load());
-  #noticeTimer: ReturnType<typeof setTimeout> | undefined;
   // 불러오기 응답이 오래된 것인지 가려내는 표. 쓰기를 시작할 때마다 epoch 가, 불러오기를 시작할 때마다 loadSeq 가 오른다.
   #epoch = 0;
   #loadSeq = 0;
@@ -46,12 +39,6 @@ class BlogStore {
   /** 화면에 보일 아이템. 저장된 게 없으면 기본 분야만 채운 빈 아이템. */
   view(day: string): BlogDay {
     return this.days[day] ?? emptyDay(day, defaultCategory(day, this.rules) ?? CATEGORIES[0]);
-  }
-
-  say(kind: Notice["kind"], text: string): void {
-    this.notice = { kind, text };
-    clearTimeout(this.#noticeTimer);
-    this.#noticeTimer = setTimeout(() => (this.notice = null), NOTICE_MS);
   }
 
   async load(): Promise<void> {
@@ -75,9 +62,9 @@ class BlogStore {
       this.days = Object.fromEntries(rows.map((row) => [row.day, row]));
       this.rules = rules;
       this.loaded = true;
-      if (rules.length === 0) this.say("err", NO_RULES_MESSAGE);
+      if (rules.length === 0) notice.say("err", NO_RULES_MESSAGE);
     } catch (err) {
-      this.say("err", `불러오기 실패: ${(err as Error).message}`);
+      notice.say("err", `불러오기 실패: ${(err as Error).message}`);
     }
   }
 
@@ -117,19 +104,19 @@ class BlogStore {
   async save(next: BlogDay): Promise<boolean> {
     const blocked = this.#writeBlock(next.day);
     if (blocked) {
-      this.say("err", blocked);
+      notice.say("err", blocked);
       return false;
     }
     const reason = validate(next);
     if (reason) {
-      this.say("err", reason);
+      notice.say("err", reason);
       return false;
     }
     this.#epoch += 1;
     this.days[next.day] = next;
     return this.#writes.run(
       () => upsertDay(next),
-      (err) => this.say("err", `저장 실패: ${(err as Error).message}`),
+      (err) => notice.say("err", `저장 실패: ${(err as Error).message}`),
     );
   }
 
@@ -148,12 +135,12 @@ class BlogStore {
   async move(from: string, to: string): Promise<boolean> {
     if (from === to) return false;
     if (!this.loaded) {
-      this.say("err", NOT_LOADED_MESSAGE);
+      notice.say("err", NOT_LOADED_MESSAGE);
       return false;
     }
     const reason = moveBlock(this.stored(from), this.stored(to));
     if (reason) {
-      this.say("err", reason);
+      notice.say("err", reason);
       return false;
     }
     this.#epoch += 1;
@@ -163,7 +150,7 @@ class BlogStore {
     // 실패하면 쓰기가 끝난 뒤 서버 값으로 다시 맞춘다.
     return this.#writes.run(
       () => moveDay(from, to),
-      (err) => this.say("err", `이동 실패: ${(err as Error).message}`),
+      (err) => notice.say("err", `이동 실패: ${(err as Error).message}`),
     );
   }
 }

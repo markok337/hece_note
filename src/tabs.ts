@@ -1,15 +1,42 @@
-// 하단 탭 목록. 기능을 더할 때는 여기에 한 줄을 추가하고, App.svelte 의 탭별 화면 분기에 화면을 연결한다.
+// 앱의 기능 목록 = 하단 탭 목록. 기능을 더할 때는 아래 FEATURES 에 한 항목만 추가한다.
+// 화면 연결, 로그인 뒤 시작, 로그아웃 때 정리, 연결 표시는 모두 이 항목에서 나온다.
 
-export const TABS = [{ id: "blog", label: "블로그" }] as const;
+import type { Component } from "svelte";
+import BlogView from "./features/blog/BlogView.svelte";
+import { blog } from "./features/blog/store.svelte";
 
-export type TabId = (typeof TABS)[number]["id"];
+export interface Feature {
+  id: string;
+  label: string;
+  /** 탭 화면. 탭을 오가도 사라지지 않고 숨겨지기만 하므로 화면 상태가 유지된다. */
+  view: Component;
+  /** 로그인 직후 불린다. 데이터 불러오기와 실시간 구독을 시작한다. */
+  start: () => Promise<void>;
+  /** 로그아웃 때 불린다. 구독을 끊고 메모리의 데이터를 비운다. */
+  stop: () => Promise<void>;
+  /** 실시간 연결이 살아 있는지. 하단의 "실시간/끊김" 표시에 쓴다. */
+  isLive: () => boolean;
+}
+
+export const FEATURES = [
+  {
+    id: "blog",
+    label: "블로그",
+    view: BlogView,
+    start: () => blog.start(),
+    stop: () => blog.stop(),
+    isLive: () => blog.live,
+  },
+] as const satisfies readonly Feature[];
+
+export type TabId = (typeof FEATURES)[number]["id"];
 
 export const DEFAULT_TAB: TabId = "blog";
 
 const STORAGE_KEY = "hece_tab";
 
 function isTabId(value: string | null): value is TabId {
-  return TABS.some((tab) => tab.id === value);
+  return FEATURES.some((tab) => tab.id === value);
 }
 
 /** 마지막으로 보던 탭. 저장소를 못 쓰거나 없어진 탭이면 기본 탭. */

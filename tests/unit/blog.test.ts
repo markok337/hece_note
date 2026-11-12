@@ -11,7 +11,7 @@ import {
   validate,
   type BlogDay,
   type CategoryRule,
-} from "../../src/domain/blog";
+} from "../../src/features/blog/domain";
 
 const RULE: CategoryRule = {
   effective_from: "1970-01-01",

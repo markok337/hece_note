@@ -1,4 +1,4 @@
--- 토이 앱: 기기 접속 기록 테이블.
+-- 0001: 토이 앱: 기기 접속 기록 테이블.
 -- Supabase 웹 > SQL Editor 에 통째로 붙여 넣고 Run 한다. 여러 번 실행해도 안전하다.
 
 create table if not exists public.device_pings (

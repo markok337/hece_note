@@ -1,16 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { blog } from "../data/blog.svelte";
-  import { viewport } from "../data/viewport.svelte";
-  import { parseYmd, shiftMonth, todayYmd, type MonthRef } from "../domain/dates";
+  import { blog } from "./store.svelte";
+  import { viewport } from "../../core/viewport.svelte";
+  import { parseYmd, shiftMonth, todayYmd, type MonthRef } from "../../core/dates";
   import Calendar from "./Calendar.svelte";
   import ItemPanel from "./ItemPanel.svelte";
-
-  interface Props {
-    onlogout: () => void;
-  }
-
-  const { onlogout }: Props = $props();
 
   // 드래그 중 이전/다음 달 버튼 위에 머물면 달이 넘어간다. 처음은 짧게, 이어서는 조금 느리게.
   const NAV_DWELL_MS = 500;
@@ -94,12 +88,7 @@
         <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
       </svg>
     </button>
-    <button type="button" class="sub icon" aria-label="로그아웃" onclick={onlogout}>
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" />
-      </svg>
-    </button>
-  </header>
+</header>
 
   <div class="body">
     <div class="cal">

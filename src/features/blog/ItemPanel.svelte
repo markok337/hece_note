@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { blog } from "../data/blog.svelte";
+  import { blog } from "./store.svelte";
   import {
     ASSIGNEES,
     CATEGORIES,
@@ -11,8 +11,9 @@
     type Assignee,
     type Category,
     type CheckKey,
-  } from "../domain/blog";
-  import { parseYmd, weekday } from "../domain/dates";
+  } from "./domain";
+  import { parseYmd, weekday } from "../../core/dates";
+  import { notice } from "../../core/notice.svelte";
 
   interface Props {
     day: string;
@@ -45,7 +46,7 @@
   function pickAssignee(who: Assignee): void {
     if (item.assignee === who) {
       const reason = assigneeClearBlock(item);
-      if (reason) return blog.say("err", reason);
+      if (reason) return notice.say("err", reason);
       void blog.patch(day, { assignee: null });
       return;
     }
@@ -59,7 +60,7 @@
       const reason = topicClearBlock(item);
       if (reason) {
         topicDraft = item.topic ?? "";
-        return blog.say("err", reason);
+        return notice.say("err", reason);
       }
     }
     void blog.patch(day, { topic: next }).then((ok) => {
@@ -69,13 +70,13 @@
 
   function toggle(key: CheckKey): void {
     const reason = checkToggleBlock(item, key);
-    if (reason) return blog.say("err", reason);
+    if (reason) return notice.say("err", reason);
     void blog.patch(day, { [key]: !item[key] });
   }
 
   async function moveTo(): Promise<void> {
     if (!moveTarget) return;
-    if (await blog.move(day, moveTarget)) blog.say("ok", `${moveTarget}(으)로 옮겼다.`);
+    if (await blog.move(day, moveTarget)) notice.say("ok", `${moveTarget}(으)로 옮겼다.`);
   }
 </script>
 

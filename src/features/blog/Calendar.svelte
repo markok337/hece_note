@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { blog } from "../data/blog.svelte";
-  import { cellColor, colorLabel, hasContent, moveBlock, nextStep } from "../domain/blog";
-  import { fitCellFont } from "../domain/cell-font";
-  import { monthGrid, parseYmd, todayYmd, type MonthRef } from "../domain/dates";
+  import { blog } from "./store.svelte";
+  import { cellColor, colorLabel, hasContent, moveBlock, nextStep } from "./domain";
+  import { fitCellFont } from "./cell-font";
+  import { monthGrid, parseYmd, todayYmd, type MonthRef } from "../../core/dates";
 
   interface Props {
     month: MonthRef;

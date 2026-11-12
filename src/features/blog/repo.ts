@@ -1,8 +1,8 @@
 // blog_days / blog_category_rules 접근. Supabase 호출은 이 파일에만 둔다.
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import type { BlogDay, CategoryRule } from "../domain/blog";
-import { supabase } from "../supabase";
+import type { BlogDay, CategoryRule } from "./domain";
+import { supabase } from "../../supabase";
 
 const DAY_COLUMNS = "day, category, assignee, topic, photo, writing, editing, related, reserved";
 const RULE_COLUMNS = "effective_from, anchor_day, cycle";

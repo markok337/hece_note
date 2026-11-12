@@ -49,11 +49,14 @@
 
 ## 5. 테이블 만들기
 
-Supabase 웹 > SQL Editor > New query 에 아래 두 파일을 하나씩 통째로 붙여 넣고 Run 한다.
-여러 번 실행해도 안전하다.
+Supabase 웹 > SQL Editor > New query 에 `supabase/migrations/`의 파일을 **번호 순서대로** 하나씩 통째로 붙여 넣고 Run 한다.
+파일 안의 내용은 여러 번 실행해도 안전하다. 이미 실행한 번호는 다시 돌릴 필요가 없다.
 
-- `supabase/schema.sql`: 접속 기록 테이블. 화면에서는 더 쓰지 않지만, Supabase 일시정지 방지 작업(`keepalive`)이 이 테이블을 조회하므로 만들어 둔다.
-- `supabase/blog_schema.sql`: 블로그 스케줄 달력 테이블. 사용자(3단계)를 먼저 만들어 둬야 한다. 분야 순환 규칙의 첫 행이 그 사용자의 것으로 들어간다.
+새 기능이 테이블을 더하거나 바꿀 때는 기존 파일을 고치지 않고 다음 번호(`0003_….sql`)의 새 파일을 만든다.
+`create table if not exists`는 이미 있는 테이블에 컬럼을 더해 주지 않기 때문이다.
+
+- `0001_device_pings.sql`: 접속 기록 테이블. 화면에서는 더 쓰지 않지만, Supabase 일시정지 방지 작업(`keepalive`)이 이 테이블을 조회하므로 만들어 둔다.
+- `0002_blog.sql`: 블로그 스케줄 달력 테이블. 사용자(3단계)를 먼저 만들어 둬야 한다. 분야 순환 규칙의 첫 행이 그 사용자의 것으로 들어간다.
 
 ## 6. 기기에 설치하기
 
@@ -67,7 +70,7 @@ Supabase 웹 > SQL Editor > New query 에 아래 두 파일을 하나씩 통째�
 ## 7. 다 했는지 확인
 
 - [ ] `.env`의 다섯 칸이 모두 채워졌다
-- [ ] `schema.sql`과 `blog_schema.sql`을 실행했다
+- [ ] `supabase/migrations/`의 파일을 번호 순서대로 모두 실행했다
 - [ ] 가입 허용이 꺼져 있다
 - [ ] 사용자가 정확히 한 명이다
 - [ ] GitHub Pages 소스가 GitHub Actions다

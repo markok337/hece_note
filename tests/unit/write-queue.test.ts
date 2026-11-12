@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { WriteQueue } from "../../src/data/write-queue";
+import { WriteQueue } from "../../src/core/write-queue";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

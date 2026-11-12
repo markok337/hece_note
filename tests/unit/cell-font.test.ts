@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_FONT_PX, MIN_READABLE_PX, fitCellFont } from "../../src/domain/cell-font";
+import { MAX_FONT_PX, MIN_READABLE_PX, fitCellFont } from "../../src/features/blog/cell-font";
 
 describe("fitCellFont", () => {
   it("충분히 큰 칸은 폭의 1/6 그대로다", () => {

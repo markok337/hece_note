@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BlogDay, CategoryRule } from "../../src/domain/blog";
+import type { BlogDay, CategoryRule } from "../../src/features/blog/domain";
 
 const repo = vi.hoisted(() => ({
   fetchDays: vi.fn(),
@@ -9,9 +9,9 @@ const repo = vi.hoisted(() => ({
   subscribeDays: vi.fn(),
   unsubscribe: vi.fn(),
 }));
-vi.mock("../../src/data/repo", () => repo);
+vi.mock("../../src/features/blog/repo", () => repo);
 
-import { blog } from "../../src/data/blog.svelte";
+import { blog } from "../../src/features/blog/store.svelte";
 
 const RULE: CategoryRule = {
   effective_from: "1970-01-01",

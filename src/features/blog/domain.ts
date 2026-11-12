@@ -1,7 +1,7 @@
 // 블로그 스케줄 규칙. 화면·DB와 무관한 순수 함수만 둔다.
 // 규칙의 원본은 docs/decisions.md 의 "확정한 것: 블로그 스케줄 달력".
 
-import { dayNumber } from "./dates";
+import { dayNumber } from "../../core/dates";
 
 export const CATEGORIES = ["레시피,제품", "뷰티", "맛집,여행"] as const;
 export type Category = (typeof CATEGORIES)[number];

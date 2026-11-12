@@ -10,7 +10,8 @@
 ```
 npm install
 npm run dev      # 로컬 개발 서버 (.env 필요)
+npm test         # 단위 테스트(vitest)
 npm run build    # 타입 검사 + 프로덕션 빌드
 ```
 
-`main`에 푸시하면 GitHub Actions가 빌드해 GitHub Pages에 배포한다.
+`main`에 푸시하면 GitHub Actions가 테스트를 돌리고, 통과하면 빌드해 GitHub Pages에 배포한다.
