@@ -147,13 +147,25 @@ class FridgeStore {
 
   /** 개수를 바꾼다. null 은 개수 없음. 값이 올바른지는 부르는 쪽이 확인한다. */
   setQuantity(id: string, quantity: number | null): Promise<boolean> {
+    return this.#patchItem(id, { quantity }, "개수 저장 실패");
+  }
+
+  /** 추가된 날짜를 바꾼다. 값이 올바른지는 부르는 쪽이 확인한다. */
+  setAddedOn(id: string, added_on: string): Promise<boolean> {
+    return this.#patchItem(id, { added_on }, "날짜 저장 실패");
+  }
+
+  /** 이미 있는 재료의 일부 필드만 바꿔 저장한다. 바뀐 게 없으면 아무것도 안 한다. */
+  #patchItem(id: string, patch: Partial<Pick<FridgeItem, "quantity" | "added_on">>, failure: string): Promise<boolean> {
     const current = this.items[id];
-    if (!current || current.quantity === quantity) return Promise.resolve(false);
-    const next = { ...current, quantity };
+    if (!current || Object.entries(patch).every(([key, value]) => current[key as keyof FridgeItem] === value)) {
+      return Promise.resolve(false);
+    }
+    const next = { ...current, ...patch };
     return this.#write(
       () => (this.items[id] = next),
       () => upsertItem(next),
-      "개수 저장 실패",
+      failure,
     );
   }
 

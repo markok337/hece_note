@@ -1,6 +1,6 @@
 <script lang="ts">
   import { clock } from "../../core/clock.svelte";
-  import { COMPARTMENT_LABELS, shortDate, visibleSlice, type Compartment } from "./domain";
+  import { COMPARTMENT_LABELS, compactDate, elapsedLabel, visibleSlice, type Compartment } from "./domain";
   import { fridge } from "./store.svelte";
 
   interface Props {
@@ -38,7 +38,8 @@
       <span class="row">
         <span class="name">{item.name}</span>
         {#if item.quantity !== null}<span class="qty">×{item.quantity}</span>{/if}
-        <span class="date">{shortDate(item.added_on, clock.today)}</span>
+        <span class="date">{compactDate(item.added_on)}</span>
+        <span class="days">{elapsedLabel(item.added_on, clock.today)}</span>
       </span>
     {/each}
     {#if preview.hidden > 0}
@@ -65,6 +66,7 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     box-shadow: var(--shadow);
+    container: cell / inline-size;
   }
   .cell.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 
@@ -86,6 +88,9 @@
   }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .qty { font-weight: 700; }
-  .date { color: var(--muted); font-size: 0.72rem; }
+  .date { display: none; color: var(--muted); font-size: 0.72rem; }
+  .days { font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+  /* 칸이 넉넉할 때만 날짜를 함께 보여준다. 좁은 폰에서는 지난 날수만 보여 재료 이름이 잘리지 않게 한다. */
+  @container cell (min-width: 190px) { .date { display: inline; } }
   .more, .empty { color: var(--muted); }
 </style>

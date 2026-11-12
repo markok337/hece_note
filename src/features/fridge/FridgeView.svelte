@@ -124,7 +124,7 @@
   .cells { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 8px; }
 
   .side {
-    width: 320px;
+    width: 360px;
     flex-shrink: 0;
     padding: 14px;
     background: var(--panel);

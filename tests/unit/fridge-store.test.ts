@@ -77,6 +77,17 @@ describe("재료 쓰기", () => {
     expect(repo.upsertItem).toHaveBeenCalledWith(expect.objectContaining({ id: "new", quantity: 4 }));
   });
 
+  it("추가된 날짜를 바꾸면 정렬 순서도 따라간다", async () => {
+    await fridge.setAddedOn("new", "2026-10-01");
+    expect(fridge.itemsIn("fridge_fresh").map((i) => i.id)).toEqual(["new", "old"]);
+    expect(repo.upsertItem).toHaveBeenCalledWith(expect.objectContaining({ id: "new", added_on: "2026-10-01" }));
+  });
+
+  it("날짜가 그대로면 저장하지 않는다", async () => {
+    expect(await fridge.setAddedOn("old", "2026-11-01")).toBe(false);
+    expect(repo.upsertItem).not.toHaveBeenCalled();
+  });
+
   it("개수가 그대로면 저장하지 않는다", async () => {
     expect(await fridge.setQuantity("old", 2)).toBe(false);
     expect(repo.upsertItem).not.toHaveBeenCalled();

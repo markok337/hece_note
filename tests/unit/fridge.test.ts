@@ -4,7 +4,9 @@ import {
   decrease,
   increase,
   parseQuantity,
-  shortDate,
+  compactDate,
+  daysSince,
+  elapsedLabel,
   sortOldestFirst,
   sortShopping,
   validateName,
@@ -117,12 +119,28 @@ describe("visibleSlice", () => {
   });
 });
 
-describe("shortDate", () => {
-  it("올해는 월/일만 쓴다", () => {
-    expect(shortDate("2026-11-08", "2026-11-13")).toBe("11/8");
+describe("compactDate", () => {
+  it("연도 두 자리를 항상 붙인다", () => {
+    expect(compactDate("2026-11-08")).toBe("26/11/8");
+    expect(compactDate("2025-03-01")).toBe("25/3/1");
+  });
+});
+
+describe("daysSince / elapsedLabel", () => {
+  it("지난 날수를 센다", () => {
+    expect(daysSince("2026-11-08", "2026-11-13")).toBe(5);
   });
 
-  it("다른 해는 연도 두 자리를 앞에 붙인다", () => {
-    expect(shortDate("2025-03-01", "2026-11-13")).toBe("25/3/1");
+  it("해가 바뀌어도 센다", () => {
+    expect(daysSince("2025-12-30", "2026-01-02")).toBe(3);
+  });
+
+  it("오늘 넣은 재료는 '오늘'이다", () => {
+    expect(elapsedLabel("2026-11-13", "2026-11-13")).toBe("오늘");
+  });
+
+  it("지난 날은 'N일', 앞으로의 날짜는 'N일 후'다", () => {
+    expect(elapsedLabel("2026-11-08", "2026-11-13")).toBe("5일");
+    expect(elapsedLabel("2026-11-16", "2026-11-13")).toBe("3일 후");
   });
 });

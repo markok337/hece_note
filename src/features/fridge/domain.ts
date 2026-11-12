@@ -1,6 +1,6 @@
 // 냉장고 규칙: 칸 구성, 재료 정렬, 개수 증감. 화면과 서버를 모르는 순수 함수만 둔다.
 
-import { parseYmd } from "../../core/dates";
+import { dayNumber, parseYmd } from "../../core/dates";
 
 export const COMPARTMENTS = ["fridge_fresh", "fridge_sauce", "freezer_ingredient", "freezer_mealkit"] as const;
 export type Compartment = (typeof COMPARTMENTS)[number];
@@ -108,9 +108,20 @@ export function visibleSlice<T>(items: readonly T[], capacity: number): { shown:
   return { shown, hidden: items.length - shown.length };
 }
 
-/** 칸에 붙는 짧은 날짜. 올해는 "11/8", 다른 해는 "25/11/8". */
-export function shortDate(ymd: string, today: string): string {
+/** 칸에 붙는 짧은 날짜. 연도 두 자리를 항상 붙인다. 예: "26/11/8". */
+export function compactDate(ymd: string): string {
   const { year, month, day } = parseYmd(ymd);
-  const md = `${month}/${day}`;
-  return year === parseYmd(today).year ? md : `${String(year).slice(-2)}/${md}`;
+  return `${String(year).slice(-2)}/${month}/${day}`;
+}
+
+/** 추가된 날부터 오늘까지 지난 날수. 오늘 넣었으면 0, 앞으로의 날짜면 음수. */
+export function daysSince(ymd: string, today: string): number {
+  return dayNumber(today) - dayNumber(ymd);
+}
+
+/** 지난 날수를 글자로. "오늘", "5일", 앞으로의 날짜는 "3일 후". */
+export function elapsedLabel(ymd: string, today: string): string {
+  const days = daysSince(ymd, today);
+  if (days === 0) return "오늘";
+  return days > 0 ? `${days}일` : `${-days}일 후`;
 }
