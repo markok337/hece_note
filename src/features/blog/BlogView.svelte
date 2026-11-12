@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+  import { clock } from "../../core/clock.svelte";
+  import { session } from "../../core/session.svelte";
   import { blog } from "./store.svelte";
   import { viewport } from "../../core/viewport.svelte";
-  import { parseYmd, shiftMonth, todayYmd, type MonthRef } from "../../core/dates";
+  import { parseYmd, shiftMonth, type MonthRef } from "../../core/dates";
   import Calendar from "./Calendar.svelte";
   import ItemPanel from "./ItemPanel.svelte";
 
@@ -12,10 +14,11 @@
 
   type Nav = "prev" | "next";
 
-  const today = todayYmd();
-  const todayMonth: MonthRef = { year: parseYmd(today).year, month: parseYmd(today).month };
+  const today = $derived(clock.today);
+  const todayMonth = $derived<MonthRef>({ year: parseYmd(today).year, month: parseYmd(today).month });
 
-  let month = $state<MonthRef>(todayMonth);
+  let month = $state<MonthRef>({ year: parseYmd(clock.today).year, month: parseYmd(clock.today).month });
+  let modalEl = $state<HTMLDivElement>();
   // 태블릿형은 항상 하나가 보이고(고르지 않았으면 오늘), 모바일형은 누른 날짜만 모달로 열린다.
   let selected = $state<string | null>(null);
   let hoverNav = $state<Nav | null>(null);
@@ -60,6 +63,37 @@
   function closeModal(): void {
     selected = null;
   }
+
+  // 모달이 열리면 포커스를 안으로 옮기고, 닫히면 원래 누르던 칸으로 돌려준다.
+  $effect(() => {
+    if (!modalEl) return;
+    const opener = document.activeElement as HTMLElement | null;
+    void tick().then(() => modalEl?.focus());
+    return () => {
+      if (opener?.isConnected) opener.focus();
+    };
+  });
+
+  /** Escape 로 닫고, Tab 은 모달 안에서만 돈다. */
+  function onModalKey(event: KeyboardEvent): void {
+    if (event.key === "Escape") {
+      closeModal();
+      return;
+    }
+    if (event.key !== "Tab" || !modalEl) return;
+    const items = [...modalEl.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled)")];
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || active === modalEl)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 </script>
 
 <div class="blog" class:wide={viewport.isWide}>
@@ -88,7 +122,12 @@
         <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
       </svg>
     </button>
-</header>
+    <button type="button" class="sub icon" aria-label="로그아웃" onclick={() => session.logout()}>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" />
+      </svg>
+    </button>
+  </header>
 
   <div class="body">
     <div class="cal">
@@ -115,9 +154,11 @@
         class="modal"
         role="dialog"
         aria-modal="true"
+        aria-label="날짜 아이템"
         tabindex="-1"
+        bind:this={modalEl}
         onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.key === "Escape" && closeModal()}
+        onkeydown={onModalKey}
       >
         <button type="button" class="sub close" aria-label="닫기" onclick={closeModal}>✕</button>
         {#key panelDay}
@@ -182,6 +223,7 @@
     background: rgb(15 23 42 / 0.45);
   }
   .modal {
+    outline: none;
     position: relative;
     width: 100%;
     max-width: 400px;

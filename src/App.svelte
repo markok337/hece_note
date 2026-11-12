@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { notice } from "./core/notice.svelte";
+  import { session } from "./core/session.svelte";
   import { isConfigMissing, supabase } from "./supabase";
   import { FEATURES, loadTab, saveTab, type TabId } from "./tabs";
     import Login from "./ui/Login.svelte";
@@ -13,7 +14,13 @@
   let tab = $state<TabId>(loadTab());
 
   onMount(() => {
+    session.onLogout(() => void logout());
     void boot();
+    // 다른 기기에서 로그아웃했거나 세션이 만료돼 로그인이 풀리면 로그인 화면으로 보낸다.
+    const { data } = supabase?.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") void leave("로그인이 풀렸다. 다시 입력한다.");
+    }) ?? { data: null };
+    return () => data?.subscription.unsubscribe();
   });
 
   async function boot(): Promise<void> {
@@ -31,10 +38,17 @@
     await Promise.all(FEATURES.map((feature) => feature.start()));
   }
 
-  async function logout(): Promise<void> {
-    await Promise.all(FEATURES.map((feature) => feature.stop()));
-    await supabase!.auth.signOut();
+  /** 앱 화면을 닫고 모든 기능을 정리한 뒤 로그인 화면으로 간다. 이미 나갔으면 아무것도 안 한다. */
+  async function leave(reason?: string): Promise<void> {
+    if (phase !== "app") return;
     phase = "login";
+    await Promise.all(FEATURES.map((feature) => feature.stop()));
+    if (reason) notice.say("err", reason);
+  }
+
+  async function logout(): Promise<void> {
+    await leave();
+    await supabase!.auth.signOut();
   }
 
   const activeFeature = $derived(FEATURES.find((feature) => feature.id === tab) ?? FEATURES[0]);
@@ -55,7 +69,13 @@
   {:else if phase === "app"}
     <!-- 모든 기능 화면을 함께 올려 두고 현재 탭만 보인다. 그래서 탭을 오가도 보던 달·선택이 남는다. -->
     {#each FEATURES as feature (feature.id)}
-      <div class="pane" class:hidden={feature.id !== tab}>
+      <div
+        class="pane"
+        class:hidden={feature.id !== tab}
+        role="tabpanel"
+        id="pane-{feature.id}"
+        aria-labelledby="tab-{feature.id}"
+      >
         <feature.view />
       </div>
     {/each}
@@ -66,6 +86,8 @@
           <button
             type="button"
             role="tab"
+            id="tab-{item.id}"
+            aria-controls="pane-{item.id}"
             class="tab"
             class:active={tab === item.id}
             aria-selected={tab === item.id}
@@ -75,12 +97,9 @@
           </button>
         {/each}
       </nav>
-      <div class="meta">
-        <button type="button" class="logout" onclick={logout}>로그아웃</button>
-        <span class="ver" class:live={activeFeature.isLive()}>
-          v{APP_VERSION} · {activeFeature.isLive() ? "실시간" : "끊김"}
-        </span>
-      </div>
+      <span class="ver" class:live={activeFeature.isLive()}>
+        v{APP_VERSION} · {activeFeature.isLive() ? "실시간" : "끊김"}
+      </span>
     </footer>
   {/if}
 
@@ -126,18 +145,6 @@
     border-radius: 15px;
   }
   .tab.active { color: var(--accent-text); background: var(--accent); border-color: var(--accent); font-weight: 700; }
-
-  .meta { flex-shrink: 0; display: flex; align-items: center; gap: 10px; }
-  .logout {
-    height: 30px;
-    padding: 0 10px;
-    font-size: 0.75rem;
-    font-weight: 400;
-    color: var(--muted);
-    background: transparent;
-    border: 1px solid var(--line-strong);
-    border-radius: 15px;
-  }
 
   .ver {
     flex-shrink: 0;

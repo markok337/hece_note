@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
+  import { clock } from "../../core/clock.svelte";
   import { blog } from "./store.svelte";
   import { cellColor, colorLabel, hasContent, moveBlock, nextStep } from "./domain";
   import { fitCellFont } from "./cell-font";
-  import { monthGrid, parseYmd, todayYmd, type MonthRef } from "../../core/dates";
+  import { swipeDirection } from "./gestures";
+  import { monthGrid, parseYmd, type MonthRef } from "../../core/dates";
 
   interface Props {
     month: MonthRef;
@@ -20,16 +23,12 @@
   const LONG_PRESS_MS = 350;
   const MOUSE_DRAG_PX = 6;
   const TOUCH_CANCEL_PX = 10;
-  // 쓸어 넘기기: 달력 폭의 1/4 과 80px 중 큰 값 이상 옆으로 밀어야 하고, 위아래보다 1.5배 이상 옆으로 가야 한다.
-  const SWIPE_MIN_PX = 80;
-  const SWIPE_WIDTH_RATIO = 0.25;
-  const SWIPE_DOMINANCE = 1.5;
   // 포인터가 화면 위쪽(헤더)에 있으면 라벨을 위가 아니라 아래에 띄워 잘리지 않게 한다.
   const GHOST_FLIP_Y = 60;
   const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b);
 
   const weeks = $derived(monthGrid(month));
-  const today = todayYmd();
+  const today = $derived(clock.today);
 
   interface Pending {
     from: string;
@@ -121,11 +120,11 @@
     if (!started || started.pointerId !== event.pointerId || itemDragged) return;
     const dx = event.clientX - started.startX;
     const dy = event.clientY - started.startY;
-    const minPx = Math.max(SWIPE_MIN_PX, (gridEl?.clientWidth ?? 0) * SWIPE_WIDTH_RATIO);
-    if (Math.abs(dx) < minPx || Math.abs(dx) < Math.abs(dy) * SWIPE_DOMINANCE) return;
+    const direction = swipeDirection(dx, dy, gridEl?.clientWidth ?? 0);
+    if (!direction) return;
     suppressClick = true;
     setTimeout(() => (suppressClick = false), 0);
-    onmonthstep(dx < 0 ? "next" : "prev");
+    onmonthstep(direction);
   }
 
   function endPending(): void {
@@ -206,6 +205,27 @@
     onselect(day);
   }
 
+  // 화면이 사라질 때 window 에 걸어 둔 리스너와 타이머를 정리한다.
+  onDestroy(() => {
+    endPending();
+    endSwipe();
+    onnavhover(null);
+  });
+
+  /** 스크린리더용 칸 설명. 색과 글자로만 전하던 내용을 말로 옮긴다. */
+  function describe(day: string, color: string): string {
+    const view = blog.view(day);
+    const { month: m, day: d } = parseYmd(day);
+    const parts = [`${m}월 ${d}일`, view.category];
+    if (view.assignee) parts.push(`담당 ${view.assignee}`);
+    if (view.topic) parts.push(`주제 ${view.topic}`);
+    if (color === "gray") parts.push("예약 완료");
+    const item = blog.stored(day);
+    const step = item ? nextStep(item) : null;
+    if (step) parts.push(`다음 단계 ${step}`);
+    return parts.join(", ");
+  }
+
   function dropState(day: string): "ok" | "no" | null {
     if (!drag || drag.over !== day || day === drag.from) return null;
     return moveBlock(blog.stored(drag.from), blog.stored(day)) ? "no" : "ok";
@@ -242,6 +262,7 @@
           class:drop-ok={drop === "ok"}
           class:drop-no={drop === "no"}
           data-day={day}
+          aria-label={describe(day, color)}
           onpointerdown={(e) => onDown(e, day)}
           onclick={() => onClick(day)}
           oncontextmenu={(e) => e.preventDefault()}
