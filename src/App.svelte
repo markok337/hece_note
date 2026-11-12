@@ -109,11 +109,11 @@
     font-size: 0.85rem;
     font-weight: 400;
     color: var(--muted);
-    background: transparent;
-    border: 1px solid var(--line);
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
     border-radius: 15px;
   }
-  .tab.active { color: #0b1220; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+  .tab.active { color: var(--accent-text); background: var(--accent); border-color: var(--accent); font-weight: 700; }
 
   .ver {
     flex-shrink: 0;
@@ -135,7 +135,8 @@
     border-radius: 8px;
     font-size: 0.9rem;
     background: var(--panel);
-    border: 1px solid var(--line);
+    border: 1px solid var(--line-strong);
+    box-shadow: 0 4px 12px rgb(15 23 42 / 0.2);
   }
   .toast.err { color: var(--danger); border-color: var(--danger); }
   .toast.ok { color: var(--ok); border-color: var(--ok); }

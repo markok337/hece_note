@@ -157,15 +157,9 @@
 </section>
 
 <style>
-  .panel { display: flex; flex-direction: column; gap: 10px; }
-  .cols, .col { display: flex; flex-direction: column; gap: 10px; }
+  .panel { display: flex; flex-direction: column; gap: 8px; }
+  .cols, .col { display: flex; flex-direction: column; gap: 8px; }
 
-  /* 낮은 화면(폰을 가로로 눕힌 경우 등)에서는 두 열로 나눠 세로 길이를 줄인다. */
-  @media (max-height: 520px) {
-    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
-    .panel { gap: 6px; }
-    .col { gap: 8px; }
-  }
   h2 { margin: 0; font-size: 1.05rem; }
   .field { display: flex; flex-direction: column; gap: 4px; }
   .label { color: var(--muted); font-size: 0.8rem; }
@@ -197,7 +191,8 @@
     border: 1px solid var(--line);
   }
   .check.on { border-color: var(--accent); }
-  .check.locked:not(.on) { opacity: 0.45; }
+  /* 아직 못 누르는 항목: 흐리게(투명도) 만들면 읽기 어려우니 점선과 보조 글자색으로 구분한다. */
+  .check.locked:not(.on) { color: var(--muted); background: var(--panel); border-style: dashed; }
   .box {
     display: inline-flex;
     align-items: center;
@@ -209,11 +204,24 @@
     font-size: 0.9rem;
     line-height: 1;
   }
-  .check.on .box { background: var(--accent); border-color: var(--accent); color: #0b1220; }
+  .check.on .box { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 
   .move { padding-top: 8px; border-top: 1px solid var(--line); }
   .row input { padding: 9px 10px; }
   .row button { padding: 9px 14px; }
   .panel :global(input) { padding: 9px 10px; }
   .row { display: flex; gap: 8px; }
+
+  /* 낮은 화면(폰을 가로로 눕힌 경우 등)에서는 두 열로 나눠 세로 길이를 줄인다.
+     위의 일반 규칙을 덮어써야 하니 반드시 스타일의 맨 뒤에 둔다. */
+  @media (max-height: 520px) {
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+    .panel { gap: 4px; }
+    .col { gap: 5px; }
+    h2 { font-size: 1rem; }
+    /* 세로가 아주 모자라니 항목 안쪽 여백을 더 줄인다. */
+    .check { padding: 6px 8px; font-size: 0.9rem; }
+    select, .seg button, .panel :global(input), .row button { padding-top: 6px; padding-bottom: 6px; }
+    .move { padding-top: 6px; }
+  }
 </style>

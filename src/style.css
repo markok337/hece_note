@@ -1,25 +1,32 @@
 :root {
-  color-scheme: dark;
-  --bg: #111827;
-  --panel: #1f2937;
-  --line: #374151;
-  --text: #f9fafb;
-  --muted: #9ca3af;
-  --accent: #60a5fa;
-  --danger: #f87171;
-  --ok: #4ade80;
+  color-scheme: light;
+  --bg: #f1f5f9;
+  --panel: #ffffff;
+  --line: #cbd5e1;
+  /* 입력칸·버튼 테두리처럼 경계가 또렷해야 하는 곳. */
+  --line-strong: #94a3b8;
+  --text: #0f172a;
+  /* 보조 글자. 흰 바탕과 연한 회색 바탕 모두에서 대비 6:1 이상이다. */
+  --muted: #475569;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-text: #ffffff;
+  --danger: #b91c1c;
+  --ok: #15803d;
+  --shadow: 0 1px 3px rgb(15 23 42 / 0.12);
 
-  /* 달력 칸 색. 칸은 항상 이 셋 중 하나다. */
+  /* 달력 칸 색. 칸은 항상 이 넷 중 하나다. 글자는 모두 칸 색과 대비 7:1 이상이다. */
   --cell-blue: #7dd3fc;
   --cell-pink: #f9a8d4;
-  --cell-white: #f3f4f6;
-  --cell-gray: #4b5563;
-  --cell-gray-text: #f3f4f6;
-  --cell-dark-text: #0b1220;
-  --today: #facc15;
+  --cell-white: #ffffff;
+  --cell-white-border: #cbd5e1;
+  --cell-gray: #cbd5e1;
+  --cell-gray-text: #334155;
+  --cell-dark-text: #0f172a;
+  --today: #ea580c;
 
   /* 칸 하단의 "다음 단계" 표시. 어떤 칸 색 위에서도 눈에 띄도록 어두운 바탕에 밝은 노랑이다. */
-  --step-bg: #0b1220;
+  --step-bg: #0f172a;
   --step-text: #fde047;
 }
 
@@ -36,21 +43,27 @@ body {
 
 html { height: 100%; overflow: hidden; }
 
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
 .card p { margin: 0 0 12px; color: var(--muted); font-size: 0.9rem; }
 
 form { display: flex; gap: 8px; }
 input {
   flex: 1; min-width: 0; padding: 12px; font-size: 1rem;
-  background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: 8px;
 }
-input:disabled { opacity: 0.5; }
+input::placeholder { color: #64748b; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 1px; }
+/* 못 쓰는 입력칸도 흐리게(투명도) 만들지 않고 색으로 구분해 안내 글자를 읽을 수 있게 한다. */
+input:disabled { background: #e2e8f0; border-color: var(--line); cursor: not-allowed; }
+input:disabled::placeholder { color: var(--muted); }
 button {
   padding: 12px 16px; font-size: 1rem; font-weight: 600; cursor: pointer;
-  background: var(--accent); color: #0b1220; border: 0; border-radius: 8px;
+  background: var(--accent); color: var(--accent-text); border: 0; border-radius: 8px;
 }
-button.sub { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 400; }
-button:disabled { opacity: 0.5; cursor: default; }
+button:active { filter: brightness(0.92); }
+button.sub { background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); font-weight: 400; }
+/* 비활성 버튼도 글자는 또렷하게 두고, 점선 테두리와 회색 바탕으로 "지금은 못 누름"을 알린다. */
+button:disabled, button.sub:disabled { background: #e2e8f0; color: var(--muted); border: 1px dashed var(--line-strong); cursor: default; filter: none; }
 
 .msg { margin-top: 8px; font-size: 0.85rem; min-height: 1.2em; }
 .msg.err { color: var(--danger); }

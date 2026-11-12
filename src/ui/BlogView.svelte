@@ -152,7 +152,7 @@
   /* 폭 360px 폰에서도 버튼 글자가 줄바꿈되지 않게, 모자라는 폭은 월 제목이 줄어서 맞춘다. */
   header button { padding: 0 12px; height: 38px; font-size: 0.9rem; white-space: nowrap; flex-shrink: 0; }
   header button.icon { width: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 1.3rem; }
-  header button.drag-hover { background: var(--accent); color: #0b1220; border-color: var(--accent); }
+  header button.drag-hover { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
   .spacer { flex: 1; }
 
   /* 폭 380px 이하 폰: 버튼 간격과 크기를 조금 줄여 월 제목이 잘리지 않게 한다. */
@@ -177,6 +177,7 @@
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 12px;
+    box-shadow: var(--shadow);
     /* 항목이 화면에 다 들어가도록 줄여 두었지만, 아주 낮은 화면의 마지막 안전장치다. */
     overflow-y: auto;
   }
@@ -189,7 +190,7 @@
     align-items: center;
     justify-content: center;
     padding: 12px;
-    background: rgb(0 0 0 / 0.6);
+    background: rgb(15 23 42 / 0.45);
   }
   .modal {
     position: relative;
@@ -201,6 +202,7 @@
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 12px;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 0.25);
   }
   .close { position: absolute; top: 8px; right: 8px; padding: 6px 10px; }
 

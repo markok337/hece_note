@@ -286,7 +286,7 @@
     color: var(--muted);
   }
   .sun { color: var(--danger); }
-  .sat { color: var(--accent); }
+  .sat { color: var(--accent-strong); }
 
   .grid {
     touch-action: pan-y;
@@ -322,15 +322,15 @@
   /* 세로 밀기는 브라우저에 맡기고, 가로 밀기는 쓸어 넘기기로 받는다. */
   .cell { touch-action: pan-y; }
   .cell.movable { touch-action: none; cursor: grab; }
-  .cell.white { background: var(--cell-white); color: var(--cell-dark-text); }
+  .cell.white { background: var(--cell-white); color: var(--cell-dark-text); border-color: var(--cell-white-border); }
   .cell.gray { background: var(--cell-gray); color: var(--cell-gray-text); }
   .cell.blue { background: var(--cell-blue); color: var(--cell-dark-text); }
   .cell.pink { background: var(--cell-pink); color: var(--cell-dark-text); }
-  .cell.other { opacity: 0.45; }
+  .cell.other { opacity: 0.7; }
   /* 다른 달의 빈 칸은 색을 채우지 않는다. 투명도만 주면 예약(회색)과 헷갈린다. */
   .cell.other.white { opacity: 1; background: transparent; color: var(--muted); border-color: var(--line); }
   .cell.today { border-color: var(--today); }
-  .cell.selected { box-shadow: 0 0 0 2px var(--accent); }
+  .cell.selected { box-shadow: 0 0 0 2px var(--accent-strong); }
   .cell.dragging { opacity: 0.4; }
   .cell.drop-ok { border-color: var(--ok); }
   .cell.drop-no { border-color: var(--danger); }
@@ -342,12 +342,11 @@
     right: 4px;
     font-size: 0.65rem;
     font-weight: 700;
-    opacity: 0.75;
   }
   /* 분야·주제 글자 크기는 칸의 가로·세로에 맞춰 스크립트가 --cal-font 로 정한다(domain/cell-font.ts).
      아직 재기 전이거나 값을 못 얻으면 칸 안쪽 폭의 1/6(한글 6글자)로 대신한다. */
   .cat, .topic { font-size: var(--cal-font, min(calc(100cqw / var(--chars-per-line)), 1.5rem)); }
-  .cat { opacity: 0.85; word-break: keep-all; overflow-wrap: anywhere; }
+  .cat { word-break: keep-all; overflow-wrap: anywhere; }
   .topic {
     font-weight: 700;
     overflow: hidden;
@@ -385,7 +384,7 @@
     font-size: 0.85rem;
     font-weight: 700;
     pointer-events: none;
-    box-shadow: 0 4px 12px rgb(0 0 0 / 0.5);
+    box-shadow: 0 4px 12px rgb(15 23 42 / 0.3);
   }
   .ghost.below { transform: translate(-50%, 24px); }
   .ghost.white { background: var(--cell-white); color: var(--cell-dark-text); }

@@ -28,8 +28,8 @@ export default defineConfig({
         start_url: BASE_PATH,
         scope: BASE_PATH,
         display: "standalone",
-        background_color: "#111827",
-        theme_color: "#111827",
+        background_color: "#f1f5f9",
+        theme_color: "#f1f5f9",
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },
