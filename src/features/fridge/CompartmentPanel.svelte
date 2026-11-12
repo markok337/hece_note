@@ -99,36 +99,7 @@
     <ul>
       {#each items as item (item.id)}
         <li>
-          <span class="top">
-            <span class="name" title={item.name}>{item.name}</span>
-            <span class="stepper">
-              <button
-                type="button"
-                class="sub step"
-                aria-label="{item.name} 개수 줄이기"
-                disabled={item.quantity === null}
-                onclick={() => setQuantity(item, decrease(item.quantity))}>−</button
-              >
-              <input
-                class="qty"
-                inputmode="numeric"
-                maxlength={String(MAX_QUANTITY).length}
-                placeholder="-"
-                aria-label="{item.name} 개수"
-                value={item.quantity ?? ""}
-                onchange={(e) => commitQuantity(item, e.currentTarget)}
-                onkeydown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-              />
-              <button
-                type="button"
-                class="sub step"
-                aria-label="{item.name} 개수 늘리기"
-                disabled={item.quantity === MAX_QUANTITY}
-                onclick={() => setQuantity(item, increase(item.quantity))}>+</button
-              >
-            </span>
-            <button type="button" class="sub del" aria-label="{item.name} 삭제" onclick={() => void fridge.removeItem(item.id)}>✕</button>
-          </span>
+          <span class="name" title={item.name}>{item.name}</span>
           <span class="when">
             <button
               type="button"
@@ -148,6 +119,33 @@
               onchange={(e) => commitDate(item, e.currentTarget.value)}
             />
           </span>
+          <span class="stepper">
+            <button
+              type="button"
+              class="sub step"
+              aria-label="{item.name} 개수 줄이기"
+              disabled={item.quantity === null}
+              onclick={() => setQuantity(item, decrease(item.quantity))}>−</button
+            >
+            <input
+              class="qty"
+              inputmode="numeric"
+              maxlength={String(MAX_QUANTITY).length}
+              placeholder="-"
+              aria-label="{item.name} 개수"
+              value={item.quantity ?? ""}
+              onchange={(e) => commitQuantity(item, e.currentTarget)}
+              onkeydown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            />
+            <button
+              type="button"
+              class="sub step"
+              aria-label="{item.name} 개수 늘리기"
+              disabled={item.quantity === MAX_QUANTITY}
+              onclick={() => setQuantity(item, increase(item.quantity))}>+</button
+            >
+          </span>
+          <button type="button" class="sub del" aria-label="{item.name} 삭제" onclick={() => void fridge.removeItem(item.id)}>✕</button>
         </li>
       {/each}
     </ul>
@@ -162,20 +160,22 @@
   .add { display: flex; gap: 3px; }
   .add input { padding: 8px 4px; font-size: 0.85rem; }
   .add button { flex-shrink: 0; padding: 8px 9px; font-size: 0.85rem; }
-  .name-input { flex: 1 1 0; min-width: 0; padding-left: 7px; }
-  .date-input { flex: none; width: 126px; }
-  .qty-input { flex: none; width: 44px; text-align: center; }
+  /* 입력 세 칸은 폭이 같고, 추가 버튼만 제 크기를 쓴다. 날짜 칸은 폭이 좁아 글자를 조금 줄였다. */
+  .add input { flex: 1 1 0; min-width: 0; }
+  .add .date-input { font-size: 0.75rem; padding-left: 2px; padding-right: 2px; }
+  .qty-input { text-align: center; }
 
   ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-  li { display: flex; flex-direction: column; gap: 2px; padding: 5px 0; border-top: 1px solid var(--line); }
-  .top { display: flex; align-items: center; gap: 6px; }
+  /* 재료 하나는 한 줄이다: 이름 · 날짜(+지난 날수) · 개수 · 삭제. */
+  li { display: flex; align-items: center; gap: 4px; padding: 5px 0; border-top: 1px solid var(--line); }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .when { position: relative; align-self: flex-start; }
+  .when { position: relative; flex-shrink: 0; }
   .date-btn {
     padding: 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 400;
+    white-space: nowrap;
     color: var(--muted);
     background: none;
     border-bottom: 1px dotted var(--muted);
