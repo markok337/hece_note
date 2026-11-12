@@ -103,7 +103,13 @@
 
   <div class="body">
     <div class="cal">
-      <Calendar {month} {selected} onselect={(day) => (selected = day)} onnavhover={onNavHover} />
+      <Calendar
+        {month}
+        {selected}
+        onselect={(day) => (selected = day)}
+        onnavhover={onNavHover}
+        onmonthstep={step}
+      />
     </div>
     {#if viewport.isWide && panelDay}
       <aside class="side">

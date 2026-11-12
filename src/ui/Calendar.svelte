@@ -9,14 +9,20 @@
     onselect: (day: string) => void;
     /** 드래그 중인 포인터가 이전/다음 달 버튼 위에 있으면 그 방향, 아니면 null. */
     onnavhover: (nav: "prev" | "next" | null) => void;
+    /** 달력을 좌우로 크게 쓸었을 때 넘길 방향. 왼쪽으로 쓸면 다음 달, 오른쪽으로 쓸면 이전 달이다. */
+    onmonthstep: (nav: "prev" | "next") => void;
   }
 
-  const { month, selected, onselect, onnavhover }: Props = $props();
+  const { month, selected, onselect, onnavhover, onmonthstep }: Props = $props();
 
   const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
   const LONG_PRESS_MS = 350;
   const MOUSE_DRAG_PX = 6;
   const TOUCH_CANCEL_PX = 10;
+  // 쓸어 넘기기: 달력 폭의 1/4 과 80px 중 큰 값 이상 옆으로 밀어야 하고, 위아래보다 1.5배 이상 옆으로 가야 한다.
+  const SWIPE_MIN_PX = 80;
+  const SWIPE_WIDTH_RATIO = 0.25;
+  const SWIPE_DOMINANCE = 1.5;
   // 포인터가 화면 위쪽(헤더)에 있으면 라벨을 위가 아니라 아래에 띄워 잘리지 않게 한다.
   const GHOST_FLIP_Y = 60;
   const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b);
@@ -33,7 +39,17 @@
     timer: ReturnType<typeof setTimeout> | undefined;
   }
 
+  interface Swipe {
+    pointerId: number;
+    startX: number;
+    startY: number;
+  }
+
   let pending: Pending | null = null;
+  let swipe: Swipe | null = null;
+  let gridEl = $state<HTMLDivElement>();
+  // 이번에 누른 동안 아이템 드래그가 시작됐으면 쓸어 넘기기로 보지 않는다.
+  let itemDragged = false;
   let drag = $state<{ from: string; x: number; y: number; over: string | null } | null>(null);
   // 드래그가 끝난 직후 따라오는 click 을 무시하기 위한 표시.
   let suppressClick = false;
@@ -59,8 +75,35 @@
 
   function startDrag(x: number, y: number): void {
     if (!pending) return;
+    itemDragged = true;
     drag = { from: pending.from, x, y, over: dayAt(x, y) };
     onnavhover(navAt(x, y));
+  }
+
+  function endSwipe(): void {
+    swipe = null;
+    window.removeEventListener("pointerup", onSwipeUp);
+    window.removeEventListener("pointercancel", endSwipe);
+  }
+
+  function beginSwipe(event: PointerEvent): void {
+    endSwipe();
+    swipe = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+    window.addEventListener("pointerup", onSwipeUp);
+    window.addEventListener("pointercancel", endSwipe);
+  }
+
+  function onSwipeUp(event: PointerEvent): void {
+    const started = swipe;
+    endSwipe();
+    if (!started || started.pointerId !== event.pointerId || itemDragged) return;
+    const dx = event.clientX - started.startX;
+    const dy = event.clientY - started.startY;
+    const minPx = Math.max(SWIPE_MIN_PX, (gridEl?.clientWidth ?? 0) * SWIPE_WIDTH_RATIO);
+    if (Math.abs(dx) < minPx || Math.abs(dx) < Math.abs(dy) * SWIPE_DOMINANCE) return;
+    suppressClick = true;
+    setTimeout(() => (suppressClick = false), 0);
+    onmonthstep(dx < 0 ? "next" : "prev");
   }
 
   function endPending(): void {
@@ -72,7 +115,12 @@
   }
 
   function onDown(event: PointerEvent, day: string): void {
-    if (event.button !== 0 || !movable(day)) return;
+    if (event.button !== 0) return;
+    itemDragged = false;
+    const canDrag = movable(day);
+    // 마우스로 내용 있는 칸을 잡으면 아이템 이동이다. 그 밖에는 옆으로 크게 밀면 달이 넘어간다.
+    if (!(canDrag && event.pointerType === "mouse")) beginSwipe(event);
+    if (!canDrag) return;
     const isTouch = event.pointerType !== "mouse";
     pending = {
       from: day,
@@ -87,6 +135,13 @@
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
+  }
+
+  /** 칸 사이의 틈에서 시작해도 쓸어 넘길 수 있게 한다. 칸 위에서 시작한 건 onDown 이 처리한다. */
+  function onGridDown(event: PointerEvent): void {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("[data-day]")) return;
+    itemDragged = false;
+    beginSwipe(event);
   }
 
   function onMove(event: PointerEvent): void {
@@ -141,7 +196,7 @@
       <span class:sun={i === 0} class:sat={i === 6}>{name}</span>
     {/each}
   </div>
-  <div class="grid" style:grid-template-rows={`repeat(${weeks.length}, minmax(0, 1fr))`}>
+  <div class="grid" bind:this={gridEl} onpointerdown={onGridDown} style:grid-template-rows={`repeat(${weeks.length}, minmax(0, 1fr))`}>
     {#each weeks as week (week[0])}
       {#each week as day (day)}
         {@const item = blog.stored(day)}
@@ -207,6 +262,7 @@
   .sat { color: var(--accent); }
 
   .grid {
+    touch-action: pan-y;
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 3px;
@@ -236,6 +292,8 @@
     -webkit-touch-callout: none;
   }
   .cell { --chars-per-line: 6; }
+  /* 세로 밀기는 브라우저에 맡기고, 가로 밀기는 쓸어 넘기기로 받는다. */
+  .cell { touch-action: pan-y; }
   .cell.movable { touch-action: none; cursor: grab; }
   .cell.white { background: var(--cell-white); color: var(--cell-dark-text); }
   .cell.gray { background: var(--cell-gray); color: var(--cell-gray-text); }
