@@ -193,14 +193,14 @@ describe("nextStep", () => {
   });
 
   it("주제까지 있으면 사진 촬영이 남았다", () => {
-    expect(nextStep(day({ assignee: "행이", topic: "a" }))).toBe("촬영");
+    expect(nextStep(day({ assignee: "행이", topic: "a" }))).toBe("사진촬영");
   });
 
   it("앞 단계를 끝낼수록 다음 단계가 하나씩 넘어간다", () => {
     const base = { assignee: "챙이" as const, topic: "a" };
-    expect(nextStep(day({ ...base, photo: true }))).toBe("작성");
-    expect(nextStep(day({ ...base, photo: true, writing: true }))).toBe("보정");
-    expect(nextStep(day({ ...base, photo: true, writing: true, editing: true }))).toBe("연관");
+    expect(nextStep(day({ ...base, photo: true }))).toBe("글작성");
+    expect(nextStep(day({ ...base, photo: true, writing: true }))).toBe("글보정");
+    expect(nextStep(day({ ...base, photo: true, writing: true, editing: true }))).toBe("연관글");
     expect(
       nextStep(day({ ...base, photo: true, writing: true, editing: true, related: true })),
     ).toBe("예약");

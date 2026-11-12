@@ -168,7 +168,7 @@
           {#if colorLabel(color)}<span class="badge">{colorLabel(color)}</span>{/if}
           <span class="cat">{wrapCategory(view.category)}</span>
           {#if view.topic}<span class="topic">{view.topic}</span>{/if}
-          {#if step}<span class="step" title={`다음 단계: ${step}`}>→{step}</span>{/if}
+          {#if step}<span class="step" title={`다음 단계: ${step}`}>{step}</span>{/if}
         </button>
       {/each}
     {/each}
@@ -229,10 +229,13 @@
     border: 2px solid transparent;
     border-radius: 6px;
     overflow: hidden;
+    /* 안쪽 글자(분야·주제) 크기를 이 칸의 폭에 맞추기 위한 기준 상자. */
+    container-type: inline-size;
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
+  .cell { --chars-per-line: 6; }
   .cell.movable { touch-action: none; cursor: grab; }
   .cell.white { background: var(--cell-white); color: var(--cell-dark-text); }
   .cell.gray { background: var(--cell-gray); color: var(--cell-gray-text); }
@@ -256,13 +259,17 @@
     font-weight: 700;
     opacity: 0.75;
   }
+  /* 분야·주제 글자는 칸 안쪽 폭의 1/6 이다. 칸이 커지거나 작아져도 한글 6글자가 한 줄에 딱 들어간다.
+     큰 화면에서 지나치게 커지지 않도록 위쪽은 1.5rem 으로 막는다.
+     한 줄에 몇 글자를 넣을지는 --chars-per-line 하나로 바꾼다(작을수록 글자가 커진다). */
+  .cat, .topic { font-size: min(calc(100cqw / var(--chars-per-line)), 1.5rem); }
   .cat { opacity: 0.85; word-break: keep-all; overflow-wrap: anywhere; }
   .topic {
     font-weight: 700;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
     -webkit-box-orient: vertical;
     word-break: keep-all;
     overflow-wrap: anywhere;
@@ -275,7 +282,8 @@
     flex-shrink: 0;
     max-width: 100%;
     padding: 1px 3px;
-    font-size: 0.62rem;
+    /* 가장 긴 이름(사진촬영, 4글자)이 칸 폭에 들어가도록 칸 폭에 맞춘다. */
+    font-size: min(calc(100cqw / 5), 0.8rem);
     font-weight: 800;
     line-height: 1.3;
     color: var(--step-text);
@@ -303,7 +311,7 @@
 
   @media (min-width: 720px) {
     .cell { font-size: 0.8rem; padding: 4px 6px; }
-    .step { padding: 1px 6px; font-size: 0.75rem; }
+    .step { padding: 1px 6px; }
     .num { font-size: 0.9rem; }
   }
 </style>
