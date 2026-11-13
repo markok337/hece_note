@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { connection, reachable } from "./core/connection.svelte";
   import { notice } from "./core/notice.svelte";
   import { session } from "./core/session.svelte";
-  import { isConfigMissing, supabase } from "./supabase";
+  import { isConfigMissing, supabase, supabaseUrl } from "./supabase";
   import { FEATURES, loadTab, saveTab, type TabId } from "./tabs";
-    import Login from "./ui/Login.svelte";
+  import Login from "./ui/Login.svelte";
+  import Offline from "./ui/Offline.svelte";
 
   const APP_VERSION = __APP_VERSION__;
 
@@ -15,12 +17,16 @@
 
   onMount(() => {
     session.onLogout(() => void logout());
+    const stopWatching = connection.start(reachable(supabaseUrl));
     void boot();
     // 다른 기기에서 로그아웃했거나 세션이 만료돼 로그인이 풀리면 로그인 화면으로 보낸다.
     const { data } = supabase?.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") void leave("로그인이 풀렸다. 다시 입력한다.");
     }) ?? { data: null };
-    return () => data?.subscription.unsubscribe();
+    return () => {
+      data?.subscription.unsubscribe();
+      stopWatching();
+    };
   });
 
   async function boot(): Promise<void> {
@@ -59,7 +65,8 @@
   }
 </script>
 
-<main>
+<!-- 인터넷이 끊기면 앱 전체를 비활성(inert: 누르기·키보드 모두 막음)으로 하고 안내 창을 덮는다. -->
+<main inert={!connection.online}>
   {#if phase === "config-missing"}
     <div class="card">
       <p>Supabase 환경변수가 비어 있다. 빌드할 때 .env(또는 GitHub Secrets) 값이 필요하다. docs/setup.md 참고.</p>
@@ -107,6 +114,10 @@
     <div class="toast {notice.current.kind}" role="status">{notice.current.text}</div>
   {/if}
 </main>
+
+{#if !connection.online}
+  <Offline />
+{/if}
 
 <style>
   /* 앱 자체는 어떤 경우에도 스크롤하지 않는다. 남는 높이를 탭 화면이 채운다. */
