@@ -125,7 +125,9 @@ public class SmsInboxPlugin extends Plugin {
         )) {
             while (cursor != null && cursor.moveToNext()) {
                 total++;
-                String sender = digits(cursor.getString(0));
+                // 점검용이라 숫자만 남기지 않고 보낸 쪽의 원래 표기를 그대로 센다.
+                String raw = cursor.getString(0);
+                String sender = raw == null ? "" : raw;
                 counts.put(sender, counts.getOrDefault(sender, 0) + 1);
             }
         } catch (SecurityException e) {
