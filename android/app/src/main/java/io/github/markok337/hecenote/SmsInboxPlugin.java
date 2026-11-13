@@ -225,10 +225,59 @@ public class SmsInboxPlugin extends Plugin {
             senders.put(entryItem);
         }
         JSObject result = new JSObject();
+        JSArray sources = new JSArray();
+        for (String line : probeSources(since)) sources.put(line);
+        result.put("sources", sources);
         result.put("total", items.size());
         result.put("mms", mms);
         result.put("senders", senders);
         call.resolve(result);
+    }
+
+    /**
+     * 점검용. 저장소 여러 곳을 조건 없이 훑어 곳마다 건수와 보낸 쪽별 건수를 한 줄 문구로 만든다(본문은 읽지 않는다).
+     * 카드 문자가 어느 저장소에 들어 있는지 찾으려는 것이다. 재난문자(#CMAS#)는 뺀다.
+     */
+    private List<String> probeSources(long since) {
+        List<String> lines = new ArrayList<>();
+        lines.add(probe("sms전체", Uri.parse("content://sms"), "address", "type", "date >= ?", String.valueOf(since), false));
+        lines.add(probe("mms전체(초)", MMS, null, "msg_box", "date >= ?", String.valueOf(since / 1000L), true));
+        lines.add(probe("mms전체(밀리초)", MMS, null, "msg_box", "date >= ?", String.valueOf(since), true));
+        lines.add(probe("통합", Uri.parse("content://mms-sms/complete-conversations"), "address", "type", "date >= ?", String.valueOf(since), false));
+        return lines;
+    }
+
+    /** 한 저장소를 훑는다. mms 이면 보낸 쪽을 addr 표에서 읽는다. kindColumn 은 상자·종류를 나눠 세려는 열이다. */
+    private String probe(String name, Uri uri, String addressColumn, String kindColumn, String where, String arg, boolean mms) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        int total = 0;
+        try (Cursor cursor = getContext().getContentResolver().query(uri, null, where, new String[] { arg }, "date DESC")) {
+            if (cursor == null) return name + " 읽지 못함";
+            int addressIndex = addressColumn == null ? -1 : cursor.getColumnIndex(addressColumn);
+            int kindIndex = cursor.getColumnIndex(kindColumn);
+            int idIndex = cursor.getColumnIndex("_id");
+            while (cursor.moveToNext()) {
+                total++;
+                String sender = null;
+                if (mms && idIndex >= 0 && total <= 300) sender = mmsSender(cursor.getLong(idIndex));
+                else if (addressIndex >= 0) sender = cursor.getString(addressIndex);
+                if (sender != null && sender.startsWith("#CMAS#")) continue;
+                String kind = kindIndex >= 0 ? "/" + cursor.getString(kindIndex) : "";
+                String label = (sender == null ? "(없음)" : sender) + kind;
+                counts.put(label, counts.getOrDefault(label, 0) + 1);
+            }
+        } catch (RuntimeException e) {
+            return name + " 오류(" + e.getClass().getSimpleName() + ")";
+        }
+        StringBuilder text = new StringBuilder(name + " " + total + "건");
+        int shown = 0;
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            if (shown++ == 0) text.append(": ");
+            else text.append(", ");
+            text.append(entry.getKey()).append(' ').append(entry.getValue());
+            if (shown >= 15) break;
+        }
+        return text.toString();
     }
 
     /** 번호에서 숫자만 남긴다. 국가번호(+82)로 온 번호는 0으로 시작하는 국내 형식으로 바꿔 비교한다. */
