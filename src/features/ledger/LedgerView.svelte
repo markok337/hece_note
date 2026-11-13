@@ -101,6 +101,8 @@ ${await inboxSummary(senders)}`;
       inboxOpen = true;
     } catch (err) {
       notice.say("err", `문자를 읽지 못했다: ${(err as Error).message}`);
+      // 이 기기에서 못 읽어도 다른 기기가 쌓아 둔 문자는 처리할 수 있다.
+      if (ledger.pendingSms().length > 0) inboxOpen = true;
     } finally {
       importing = false;
     }
