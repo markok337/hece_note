@@ -376,7 +376,7 @@ export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
 
 // ---- 문자 견본: 사용자가 문자에서 확정한 값으로 읽는 규칙의 바탕을 만든다 ----
 
-const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** 값이 문자에 적히는 모양들. 앞에 있는 것부터 찾는다. */
 function literalsOf(key: keyof SampleValues, values: SampleValues): string[] {
@@ -399,13 +399,27 @@ function literalsOf(key: keyof SampleValues, values: SampleValues): string[] {
   return merchant ? [merchant] : [];
 }
 
+/** 문자 본문에서 값의 글자를 찾는 식. 숫자는 다른 숫자의 일부이면 찾은 것으로 치지 않는다. */
+export function literalPattern(key: keyof SampleValues, literal: string): RegExp {
+  return new RegExp(key === "merchant" ? escapeRegExp(literal) : `(?<![\\d,.])${escapeRegExp(literal)}(?!\\d)`);
+}
+
 /** 문자 본문에 값이 글자 그대로 적혀 있으면 그 글자를 돌려준다. 숫자는 다른 숫자의 일부이면 찾은 것으로 치지 않는다. */
 function findLiteral(body: string, key: keyof SampleValues, values: SampleValues): string | null {
   for (const literal of literalsOf(key, values)) {
-    const pattern = key === "merchant" ? escapeRegExp(literal) : `(?<![\\d,.])${escapeRegExp(literal)}(?!\\d)`;
-    if (new RegExp(pattern).test(body)) return literal;
+    if (literalPattern(key, literal).test(body)) return literal;
   }
   return null;
+}
+
+/** 견본 본문에 값이 적힌 글자. 본문에 없는 값은 빠진다. */
+export function sampleLiterals(sample: SmsSample): Partial<Record<keyof SampleValues, string>> {
+  const found: Partial<Record<keyof SampleValues, string>> = {};
+  for (const key of ["amount", "spent_on", "merchant"] as const) {
+    const literal = findLiteral(sample.body, key, sample.values);
+    if (literal !== null) found[key] = literal;
+  }
+  return found;
 }
 
 /** values 중 문자 본문에 글자 그대로 있는 값만 남긴다. 없는 값은 규칙이 될 수 없다. */
@@ -432,12 +446,6 @@ function sameValues(a: SampleValues, b: SampleValues): boolean {
   return a.spent_on === b.spent_on && a.amount === b.amount && (a.merchant?.trim() || undefined) === (b.merchant?.trim() || undefined);
 }
 
-/**
- * 사용자가 확정한 값(final)에서 새 견본을 만든다. 견본으로 남기지 않으면 null 이다.
- * - 자동 채움(guess)이 맞아서 그대로 추가했으면 남기지 않는다.
- * - 금액이 문자 본문에 없으면 규칙을 만들 수 없어 남기지 않는다.
- * - 이미 같은 모양의 견본이 있거나 견본이 가득 찼으면 남기지 않는다.
- */
 /** RCS 카드 메시지(JSON)에서 글 조각을 화면에 나온 순서대로 모은다. */
 function collectTexts(node: unknown, out: string[]): void {
   if (Array.isArray(node)) {
@@ -472,6 +480,12 @@ export function plainBody(body: string): string {
   return [typeof header === "string" ? header : "", ...lines].filter(Boolean).join("\n");
 }
 
+/**
+ * 사용자가 확정한 값(final)에서 새 견본을 만든다. 견본으로 남기지 않으면 null 이다.
+ * - 자동 채움(guess)이 맞아서 그대로 추가했으면 남기지 않는다.
+ * - 금액이 문자 본문에 없으면 규칙을 만들 수 없어 남기지 않는다.
+ * - 이미 같은 모양의 견본이 있거나 견본이 가득 찼으면 남기지 않는다.
+ */
 export function newSample(body: string, final: SampleValues, guess: SampleValues | null, samples: readonly SmsSample[]): SmsSample | null {
   if (guess && sameValues(guess, final)) return null;
   const values = locateValues(body, final);

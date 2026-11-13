@@ -71,7 +71,9 @@
   /** 폰에서 등록한 번호의 최근 30일 문자를 읽어 문자함에 쌓고, 처리가 필요한 문자를 보여 준다. 안드로이드 앱에서만 읽는다. */
   async function startImport(): Promise<void> {
     if (!canReadSms()) {
-      notice.say("err", "문자는 안드로이드 앱에서만 불러올 수 있다.");
+      // 문자를 읽는 건 폰 앱뿐이지만, 폰이 쌓아 둔 문자함은 어느 기기에서든 열어 처리할 수 있다.
+      if (ledger.pendingSms().length === 0) notice.say("ok", "처리할 문자가 없다. 문자는 안드로이드 앱에서 불러오면 여기에 쌓인다.");
+      else inboxOpen = true;
       return;
     }
     if (ledger.cardList().length === 0) {

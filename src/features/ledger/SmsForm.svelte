@@ -18,8 +18,8 @@
   const initial = untrack(() => sms);
   // 이미 쌓인 문자가 JSON 모양이어도 풀어서 쓴다.
   const text = plainBody(initial.body);
-  const guess = guessFromSms(text, initial.received_at);
   const card = ledger.cardList().find((item) => item.sender === initial.sender);
+  const guess = guessFromSms(text, initial.received_at, card?.samples ?? []);
 
   let spentOn = $state(guess?.spent_on ?? "");
   let method = $state(card?.name ?? CASH);

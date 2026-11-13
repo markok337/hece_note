@@ -20,7 +20,7 @@
       sms,
       text: plainBody(sms.body),
       method: cards.find((card) => card.sender === sms.sender)?.name ?? sms.sender,
-      guess: guessFromSms(plainBody(sms.body), sms.received_at),
+      guess: guessFromSms(plainBody(sms.body), sms.received_at, cards.find((card) => card.sender === sms.sender)?.samples ?? []),
     })),
   );
 

@@ -95,6 +95,57 @@ describe("문자함 점검", () => {
   });
 });
 
+describe("견본의 틀", () => {
+  // 아는 모양이 아닌 문자: 한 줄에 "가맹점 / 금액 / 날짜" 순서로 적힌다.
+  const sample = {
+    body: "[Web발신] 삼성 3456 스타벅스 강남점 5,600원 2026.11.13 14:20 승인",
+    values: { spent_on: "2026-11-13", amount: 5600, merchant: "스타벅스 강남점" },
+  };
+
+  it("견본과 같은 모양의 새 문자에서 값 자리를 읽는다", () => {
+    const next = "[Web발신] 삼성 3456 이마트 성수점 12,300원 2026.11.20 09:05 승인";
+    expect(guessFromSms(next, "2026-11-20T00:05:00Z", [sample])).toEqual({
+      spent_on: "2026-11-20",
+      amount: 12300,
+      merchant: "이마트 성수점",
+    });
+  });
+
+  it("카드 끝자리·시각 같은 다른 숫자가 달라도 같은 모양이다", () => {
+    const next = "[Web발신] 삼성 9999 GS25 1,000원 2026.12.01 23:59 승인";
+    expect(guessFromSms(next, "2026-12-01T14:59:00Z", [sample])?.amount).toBe(1000);
+  });
+
+  it("모양이 다르면 틀에 맞지 않아 null 이다", () => {
+    expect(guessFromSms("[Web발신] 삼성 이번 달 결제 예정 금액 안내", "2026-11-13T00:00:00Z", [sample])).toBeNull();
+  });
+
+  it("취소 견본의 틀은 금액이 음수로 나온다", () => {
+    const cancel = { body: "삼성 3456 취소 스타벅스 5,600원 11/13", values: { spent_on: "2026-11-13", amount: -5600, merchant: "스타벅스" } };
+    expect(guessFromSms("삼성 3456 취소 메가커피 2,000원 11/14", "2026-11-14T00:00:00Z", [cancel])).toEqual({
+      spent_on: "2026-11-14",
+      amount: -2000,
+      merchant: "메가커피",
+    });
+  });
+
+  it("가맹점이 값으로 잡히지 않은 견본은 금액·날짜만 읽는다", () => {
+    const noMerchant = { body: "삼성 승인 5,600원 11/13", values: { spent_on: "2026-11-13", amount: 5600, merchant: "없는 글자" } };
+    expect(guessFromSms("삼성 승인 700원 11/14", "2026-11-14T00:00:00Z", [noMerchant])).toEqual({ spent_on: "2026-11-14", amount: 700 });
+  });
+
+  it("견본의 틀이 아는 모양보다 먼저 적용된다(고쳐 둔 값이 이긴다)", () => {
+    const fixed = {
+      body: "[Web발신]\nNH카드17승인\n2,400원 일시불\n11/12 15:43\n세븐일레븐 S청구역점",
+      values: { spent_on: "2026-11-12", amount: 2400, merchant: "S청구역점" },
+    };
+    const next = "[Web발신]\nNH카드17승인\n3,000원 일시불\n11/13 10:00\n세븐일레븐 S청구역점";
+    // 아는 모양대로면 줄 전체("세븐일레븐 S청구역점")지만, 사용자가 "S청구역점"으로 고친 견본이 먼저 적용된다.
+    expect(guessFromSms(next, "2026-11-13T01:00:00Z", [fixed])?.merchant).toBe("S청구역점");
+    expect(guessFromSms(next, "2026-11-13T01:00:00Z")?.merchant).toBe("세븐일레븐 S청구역점");
+  });
+});
+
 describe("임시 값 읽기", () => {
   it("승인·취소 문자에서 날짜·금액·가맹점을 읽는다", () => {
     expect(guessFromSms("[Web발신] 신한 승인 5,600원 스타벅스 11/13", "2026-11-13T03:00:00Z")).toEqual({
@@ -119,6 +170,15 @@ describe("임시 값 읽기", () => {
   it("1월에 받은 12월 문자는 지난해 날짜다", () => {
     const text = "NH카드17승인\n2,400원 일시불\n12/31 23:50\n편의점";
     expect(guessFromSms(text, "2027-01-01T00:10:00Z")?.spent_on).toBe("2026-12-31");
+  });
+
+  it("가맹점에 누적금액을 붙이지 않는다", () => {
+    const sameLine = "[Web발신]\nA카드승인\n2,400원 일시불\n11/12 15:43\n세븐일레븐 누적54,150원";
+    expect(guessFromSms(sameLine, "2026-11-12T06:43:00Z")?.merchant).toBe("세븐일레븐");
+    const onlyTotal = "[Web발신]\nA카드승인\n2,400원 일시불\n11/12 15:43\n누적54,150원\n세븐일레븐";
+    expect(guessFromSms(onlyTotal, "2026-11-12T06:43:00Z")?.merchant).toBe("세븐일레븐");
+    const noMerchant = "[Web발신]\nA카드승인\n2,400원 일시불\n11/12 15:43\n누적54,150원";
+    expect(guessFromSms(noMerchant, "2026-11-12T06:43:00Z")).toEqual({ spent_on: "2026-11-12", amount: 2400 });
   });
 
   it("모르는 모양이면 null 이라 양식이 빈칸으로 열린다", () => {
