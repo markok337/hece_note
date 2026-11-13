@@ -42,7 +42,7 @@ create table if not exists public.ledger_budget_rules (
   month       date        check (month is null or extract(day from month) = 1),
   amount      integer     not null check (amount between 1 and 1000000000),
   user_id     uuid        not null default auth.uid(),
-  constraint ledger_budget_rules_month_check
+  constraint ledger_budget_rules_scope_month
     check ((scope = 'base' and month is null) or (scope <> 'base' and month is not null))
 );
 
