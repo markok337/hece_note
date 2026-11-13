@@ -334,3 +334,12 @@ export function formatShortWon(amount: number): string {
   if (abs >= 10_000) return `${sign}${trimDecimal(abs / 10_000)}만`;
   return amount.toLocaleString("ko-KR");
 }
+
+/** 목록에서 from 자리의 항목을 to 자리로 옮긴 새 목록. 범위를 벗어나면 그대로 돌려준다. */
+export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  const next = [...list];
+  if (from < 0 || from >= next.length || to < 0 || to >= next.length || from === to) return next;
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}

@@ -93,6 +93,10 @@ export async function upsertCategory(row: CategoryRow): Promise<void> {
   check((await client().from("ledger_categories").upsert(pickCategory(row), { onConflict: "id" })).error);
 }
 
+export async function upsertCategories(rows: readonly CategoryRow[]): Promise<void> {
+  check((await client().from("ledger_categories").upsert(rows.map(pickCategory), { onConflict: "id" })).error);
+}
+
 /** 기본 분류를 채운다. 두 기기가 동시에 채워도 이름이 겹치는 행은 건너뛰므로 중복이 생기지 않는다. */
 export async function seedCategories(rows: readonly CategoryRow[]): Promise<void> {
   const { error } = await client()

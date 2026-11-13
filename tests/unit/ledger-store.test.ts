@@ -13,6 +13,7 @@ const repo = vi.hoisted(() => ({
   upsertCard: vi.fn(),
   deleteCard: vi.fn(),
   upsertCategory: vi.fn(),
+  upsertCategories: vi.fn(),
   seedCategories: vi.fn(),
   deleteCategory: vi.fn(),
   upsertBudgetRule: vi.fn(),
@@ -41,7 +42,7 @@ beforeEach(async () => {
   repo.fetchBudgetRules.mockResolvedValue([]);
   repo.fetchDismissed.mockResolvedValue([]);
   for (const name of [
-    "upsertEntry", "upsertEntries", "deleteEntry", "upsertCard", "deleteCard", "upsertCategory", "seedCategories",
+    "upsertEntry", "upsertEntries", "upsertCategories", "deleteEntry", "upsertCard", "deleteCard", "upsertCategory", "seedCategories",
     "deleteCategory", "upsertBudgetRule", "deleteBudgetRule", "insertDismissed", "unsubscribe",
   ] as const) {
     repo[name].mockResolvedValue(undefined);
@@ -109,6 +110,28 @@ describe("저장", () => {
     await ledger.dismiss(["x"]);
     await ledger.dismiss(["x"]);
     expect(repo.insertDismissed).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("분류 순서", () => {
+  it("순서를 바꾸면 선택지 순서가 바뀌고 바뀐 행만 서버에 쓴다", async () => {
+    const names = [...ledger.categories];
+    await ledger.reorderCategories([names[1], names[0], ...names.slice(2)]);
+    expect(ledger.categories.slice(0, 2)).toEqual([names[1], names[0]]);
+    expect(ledger.categoryChoices().slice(0, 2)).toEqual([names[1], names[0]]);
+    expect(repo.upsertCategories).toHaveBeenCalledTimes(1);
+    expect(repo.upsertCategories.mock.calls[0][0].map((row: CategoryRow) => [row.name, row.position])).toEqual([
+      [names[1], 0],
+      [names[0], 1],
+    ]);
+  });
+
+  it("순서가 같거나 이름이 맞지 않으면 쓰지 않는다", async () => {
+    const names = [...ledger.categories];
+    expect(await ledger.reorderCategories(names)).toBe(false);
+    expect(await ledger.reorderCategories(names.slice(1))).toBe(false);
+    expect(await ledger.reorderCategories([...names.slice(1), "없는분류"])).toBe(false);
+    expect(repo.upsertCategories).not.toHaveBeenCalled();
   });
 });
 

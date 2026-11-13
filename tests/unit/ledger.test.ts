@@ -22,6 +22,7 @@ import {
   type BudgetRules,
   type Card,
   type LedgerEntry,
+  moveItem,
 } from "../../src/features/ledger/domain";
 
 function entry(id: string, spent_on: string, amount: number, extra: Partial<LedgerEntry> = {}): LedgerEntry {
@@ -322,5 +323,23 @@ describe("짧은 금액 표기", () => {
   it("달 식별값을 읽기 좋은 글자로 바꾼다", () => {
     expect(monthKeyLabel("2026-11")).toBe("2026년 11월");
     expect(monthKeyLabel("2026-01")).toBe("2026년 1월");
+  });
+});
+
+describe("moveItem", () => {
+  it("앞으로 옮기면 그 자리에 끼어든다", () => {
+    expect(moveItem(["a", "b", "c", "d"], 3, 1)).toEqual(["a", "d", "b", "c"]);
+  });
+
+  it("뒤로 옮기면 그 자리에 끼어든다", () => {
+    expect(moveItem(["a", "b", "c", "d"], 0, 2)).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("같은 자리나 범위 밖이면 그대로이고 원본은 바뀌지 않는다", () => {
+    const list = ["a", "b"];
+    expect(moveItem(list, 1, 1)).toEqual(["a", "b"]);
+    expect(moveItem(list, 0, 5)).toEqual(["a", "b"]);
+    expect(moveItem(list, -1, 0)).toEqual(["a", "b"]);
+    expect(list).toEqual(["a", "b"]);
   });
 });

@@ -27,6 +27,7 @@ import {
   unsubscribe,
   upsertBudgetRule,
   upsertCard,
+  upsertCategories,
   upsertCategory,
   upsertEntries,
   upsertEntry,
@@ -286,6 +287,26 @@ class LedgerStore {
       () => delete this.categoryRows[row.id],
       () => deleteCategory(row.id),
       "분류 삭제 실패",
+    );
+  }
+
+  /**
+   * 분류의 순서를 바꾼다. names 는 새 순서의 분류 이름 전체이고, 지금 있는 분류와 이름이 같아야 한다.
+   * 선택지(지출 추가), 통계의 칩이 모두 이 순서를 따른다.
+   */
+  reorderCategories(names: readonly string[]): Promise<boolean> {
+    const byName = new Map(Object.values(this.categoryRows).map((row) => [row.name, row]));
+    if (names.length !== byName.size || names.some((name) => !byName.has(name))) return Promise.resolve(false);
+    const changed = names
+      .map((name, position) => ({ ...byName.get(name)!, position }))
+      .filter((row) => row.position !== byName.get(row.name)!.position);
+    if (changed.length === 0) return Promise.resolve(false);
+    return this.#write(
+      () => {
+        for (const row of changed) this.categoryRows[row.id] = row;
+      },
+      () => upsertCategories(changed),
+      "분류 순서 저장 실패",
     );
   }
 
