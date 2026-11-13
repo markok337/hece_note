@@ -77,13 +77,13 @@ describe("문자함 점검", () => {
         { sender: "15888700", count: 4 },
       ],
     });
-    expect(await inboxSummary(NOW)).toBe("문자함 최근 30일 9건(장문·사진 2건). 번호별: 15888700 4건, 0101234 1건");
-    expect(plugin.summary).toHaveBeenCalledWith({ since: Date.parse("2026-10-14T03:00:00Z") });
+    expect(await inboxSummary(["15888700"], NOW)).toBe("받은 문자 9건(장문·사진 2건). 번호별: 15888700 4건, 0101234 1건");
+    expect(plugin.summary).toHaveBeenCalledWith({ since: Date.parse("2026-10-14T03:00:00Z"), senders: ["15888700"] });
   });
 
   it("문자함이 비어 있으면 그렇게 알린다", async () => {
     plugin.summary.mockResolvedValue({ total: 0, senders: [] });
-    expect(await inboxSummary(NOW)).toContain("한 건도 없다");
+    expect(await inboxSummary([], NOW)).toContain("한 건도 없다");
   });
 });
 

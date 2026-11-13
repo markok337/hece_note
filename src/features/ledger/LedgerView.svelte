@@ -68,16 +68,17 @@
     }
     importing = true;
     try {
+      const senders = ledger.cardList().map((card) => card.sender);
       const messages = await readSms(ledger.cardList());
       if (messages.length === 0) {
         // 등록한 번호의 문자가 하나도 없으면 문자함에 무엇이 있는지 알려 준다.
-        notice.say("err", `등록한 번호의 문자가 없다. ${await inboxSummary()}`);
+        notice.say("err", `등록한 번호의 문자가 없다. ${await inboxSummary(senders)}`);
         return;
       }
       if (!(await ledger.receiveSms(messages))) return;
       if (ledger.pendingSms().length === 0) {
         // 읽은 문자가 이미 처리됐거나 무시된 경우다. 어디에 얼마나 있는지 점검 문구와 함께 알려 준다.
-        notice.say("ok", `처리할 문자가 없다. 읽은 문자 ${messages.length}건, 무시한 문자 ${ledger.ignoredCount}건. ${await inboxSummary()}`);
+        notice.say("ok", `처리할 문자가 없다. 읽은 문자 ${messages.length}건, 무시한 문자 ${ledger.ignoredCount}건. ${await inboxSummary(senders)}`);
         return;
       }
       inboxOpen = true;
