@@ -462,6 +462,9 @@ export function plainBody(body: string): string {
   } catch {
     return body;
   }
+  // NH카드 같은 "일반 카드" 모양: 문자 내용이 content.description 에 줄바꿈(\r\n)으로 들어 있다.
+  const description = (data as { message?: { generalPurposeCard?: { content?: { description?: unknown } } } }).message?.generalPurposeCard?.content?.description;
+  if (typeof description === "string" && description.trim()) return description.replace(/\r\n/g, "\n").trim();
   const lines: string[] = [];
   collectTexts((data as { layout?: unknown }).layout, lines);
   if (lines.length === 0) return body;

@@ -105,6 +105,22 @@ describe("임시 값 읽기", () => {
     expect(guessFromSms("[Web발신] 신한 취소 5,600원 스타벅스 11/13", "2026-11-13T03:00:00Z")?.amount).toBe(-5600);
   });
 
+  it("카드사 안내 모양(우리카드)에서 날짜·금액·가맹점을 읽는다", () => {
+    const text = "[Web발신]\n승인\n● 우리카드 이용안내\n우리(5485)승인\n오*연님\n5,000원 일시불\n11/12 17:33\n이두부야 고덕점\n누적54,150원";
+    expect(guessFromSms(text, "2026-11-12T08:33:00Z")).toEqual({ spent_on: "2026-11-12", amount: 5000, merchant: "이두부야 고덕점" });
+  });
+
+  it("카드사 안내 모양(NH카드)도 읽고, 취소면 금액이 음수다", () => {
+    const text = "[Web발신]\nNH카드17승인\n오*연\n2,400원 일시불\n11/12 15:43\n세븐일레븐 S청구역점";
+    expect(guessFromSms(text, "2026-11-12T06:43:00Z")).toEqual({ spent_on: "2026-11-12", amount: 2400, merchant: "세븐일레븐 S청구역점" });
+    expect(guessFromSms(text.replace("승인", "승인취소"), "2026-11-12T06:43:00Z")?.amount).toBe(-2400);
+  });
+
+  it("1월에 받은 12월 문자는 지난해 날짜다", () => {
+    const text = "NH카드17승인\n2,400원 일시불\n12/31 23:50\n편의점";
+    expect(guessFromSms(text, "2027-01-01T00:10:00Z")?.spent_on).toBe("2026-12-31");
+  });
+
   it("모르는 모양이면 null 이라 양식이 빈칸으로 열린다", () => {
     expect(guessFromSms("[Web발신] 이번 달 결제 예정 금액 안내", "2026-11-13T03:00:00Z")).toBeNull();
   });

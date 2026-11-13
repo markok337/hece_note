@@ -474,6 +474,13 @@ describe("RCS 카드 메시지 풀어 읽기", () => {
     );
   });
 
+  it("NH카드 모양은 description 의 줄바꿈을 정리해 돌려준다", () => {
+    const nh = JSON.stringify({
+      message: { generalPurposeCard: { content: { title: "알림", description: "[Web발신]\nNH카드17승인\r\n오*연\r\n2,400원 일시불\r\n11/12 15:43\r\n세븐일레븐 S청구역점" } } },
+    });
+    expect(plainBody(nh)).toBe("[Web발신]\nNH카드17승인\n오*연\n2,400원 일시불\n11/12 15:43\n세븐일레븐 S청구역점");
+  });
+
   it("일반 문자와 읽을 수 없는 본문은 그대로 돌려준다", () => {
     expect(plainBody("[Web발신] 승인 5,600원")).toBe("[Web발신] 승인 5,600원");
     expect(plainBody("{깨진 JSON")).toBe("{깨진 JSON");
