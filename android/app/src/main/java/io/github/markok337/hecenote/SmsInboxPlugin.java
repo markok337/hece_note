@@ -254,7 +254,27 @@ public class SmsInboxPlugin extends Plugin {
         List<String> lines = new ArrayList<>();
         lines.add(probe("sms", Uri.parse("content://sms"), "address", "type", String.valueOf(since), false, wanted));
         lines.add(probe("mms", MMS, null, "msg_box", String.valueOf(since / 1000L), true, wanted));
+        // 삼성 메시지의 채팅(RCS) 저장소 후보. 있는지, 읽히는지, 어떤 열이 있는지만 본다.
+        for (String path : new String[] { "content://im/chat", "content://im/message", "content://im/sessions" }) {
+            lines.add(probeColumns(path));
+        }
         return lines;
+    }
+
+    /** 저장소가 있는지, 읽히는지, 열 이름과 건수를 한 줄로 알려 준다(본문은 읽지 않는다). */
+    private String probeColumns(String path) {
+        try (Cursor cursor = getContext().getContentResolver().query(Uri.parse(path), null, null, null, null)) {
+            if (cursor == null) return path + " 없음";
+            StringBuilder text = new StringBuilder(path + " " + cursor.getCount() + "건 열: ");
+            String[] names = cursor.getColumnNames();
+            for (int i = 0; i < names.length && i < 40; i++) {
+                if (i > 0) text.append(',');
+                text.append(names[i]);
+            }
+            return text.toString();
+        } catch (RuntimeException e) {
+            return path + " 오류(" + e.getClass().getSimpleName() + ")";
+        }
     }
 
     /** 한 저장소를 훑는다. mms 이면 보낸 쪽을 addr 표에서 읽는다. kindColumn 은 상자·종류를 나눠 세려는 열이다. */
