@@ -34,6 +34,8 @@
   let importing = $state(false);
   // 문자함의 처리 필요 문자를 보는 창.
   let inboxOpen = $state(false);
+  // 문자가 안 읽힐 때 보여 주는 점검 결과. 길어서 복사할 수 있는 창에 담는다.
+  let diagnosis = $state<string | null>(null);
   // 결산에서 눌러 연 이력 창. 고른 분류(또는 구분)의 이름을 가진다.
   let drill = $state<{ kind: SliceKind; label: string } | null>(null);
 
@@ -55,6 +57,17 @@
     month = { year: parseYmd(clock.today).year, month: parseYmd(clock.today).month };
   }
 
+  /** 점검 결과를 클립보드에 복사한다. */
+  async function copyDiagnosis(): Promise<void> {
+    if (diagnosis === null) return;
+    try {
+      await navigator.clipboard.writeText(diagnosis);
+      notice.say("ok", "복사했다.");
+    } catch {
+      notice.say("err", "복사하지 못했다. 글을 길게 눌러 직접 복사한다.");
+    }
+  }
+
   /** 폰에서 등록한 번호의 최근 30일 문자를 읽어 문자함에 쌓고, 처리가 필요한 문자를 보여 준다. 안드로이드 앱에서만 읽는다. */
   async function startImport(): Promise<void> {
     if (!canReadSms()) {
@@ -72,13 +85,15 @@
       const messages = await readSms(ledger.cardList());
       if (messages.length === 0) {
         // 등록한 번호의 문자가 하나도 없으면 문자함에 무엇이 있는지 알려 준다.
-        notice.say("err", `등록한 번호의 문자가 없다. ${await inboxSummary(senders)}`);
+        diagnosis = `등록한 번호의 문자가 없다.
+${await inboxSummary(senders)}`;
         return;
       }
       if (!(await ledger.receiveSms(messages))) return;
       if (ledger.pendingSms().length === 0) {
         // 읽은 문자가 이미 처리됐거나 무시된 경우다. 어디에 얼마나 있는지 점검 문구와 함께 알려 준다.
-        notice.say("ok", `처리할 문자가 없다. 읽은 문자 ${messages.length}건, 무시한 문자 ${ledger.ignoredCount}건. ${await inboxSummary(senders)}`);
+        diagnosis = `처리할 문자가 없다. 읽은 문자 ${messages.length}건, 무시한 문자 ${ledger.ignoredCount}건.
+${await inboxSummary(senders)}`;
         return;
       }
       inboxOpen = true;
@@ -161,6 +176,15 @@
     </Modal>
   {/if}
 
+  {#if diagnosis !== null}
+    <Modal label="문자 점검" onclose={() => (diagnosis = null)}>
+      <div class="diagnosis">
+        <textarea readonly rows="10" value={diagnosis}></textarea>
+        <button type="button" onclick={copyDiagnosis}>복사</button>
+      </div>
+    </Modal>
+  {/if}
+
   {#if inboxOpen}
     <Modal fixed label="처리 필요한 문자" onclose={() => (inboxOpen = false)}>
       <SmsInbox onclose={() => (inboxOpen = false)} />
@@ -179,6 +203,9 @@
   .title { padding: 0 2px; font-size: 1rem; font-weight: 700; color: var(--text); background: none; }
   .spacer { flex: 1; }
   .import { font-weight: 700; }
+
+  .diagnosis { display: flex; flex-direction: column; gap: 8px; }
+  .diagnosis textarea { width: 100%; font-size: 0.8rem; resize: none; }
 
   .bar { flex-shrink: 0; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
   .modes { display: flex; gap: 3px; min-width: 0; }
