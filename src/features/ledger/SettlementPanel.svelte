@@ -1,5 +1,5 @@
 <script lang="ts">
-  // 결산: 한 달의 합계, 예산과 차액, 분류별·구분별 막대. 한 장의 표처럼 띠 제목 아래에 줄이 이어진다.
+  // 결산: 한 달의 합계(예금 포함), 예산과 차액, 분류별·구분별 막대. 한 장의 표처럼 띠 제목 아래에 줄이 이어진다.
   // 분류·구분 줄을 누르면 그 묶음의 이력을 보는 창을 연다. 예산은 여기서 보기만 하고 설정 탭에서 정한다.
   import { SAVINGS_CATEGORY, budgetStatus, formatWon, type MonthStats, type Slice, type SliceKind } from "./domain";
 
@@ -12,13 +12,8 @@
 
   const { stats, budget, onpick }: Props = $props();
 
-  /** 지난달과 비교한 한 문장. 지난달 기록이 없으면 비교하지 않는다. */
-  const comparison = $derived.by(() => {
-    if (stats.previousTotal === null) return "지난달 기록이 없다.";
-    const diff = stats.total - stats.previousTotal;
-    if (diff === 0) return "지난달과 같다.";
-    return `지난달보다 ${formatWon(Math.abs(diff))} ${diff > 0 ? "더" : "덜"} 썼다.`;
-  });
+  /** 이 달 합계. 예산과 비교하는 지출 합계와 달리 예금을 합친다. */
+  const grandTotal = $derived(stats.total + (stats.savings ?? 0));
 
   const status = $derived(budget === null ? null : budgetStatus(stats.total, budget));
 
@@ -47,8 +42,7 @@
   <div class="sheet">
     <h3 class="band">이 달 합계</h3>
     <div class="cell total-cell">
-      <strong class="total">{formatWon(stats.total)}</strong>
-      <span class="note">{stats.count}건 · {comparison}</span>
+      <strong class="total">{formatWon(grandTotal)}</strong>
     </div>
 
     <h3 class="band">예산</h3>
@@ -97,7 +91,6 @@
 
   .total-cell { display: flex; flex-direction: column; }
   .total { font-size: 1.6rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
-  .note { font-size: 0.85rem; color: var(--muted); }
 
   /* 예산·지출·차액은 이름 칸과 금액 칸이 있는 표 줄이다. */
   .rows { margin: 0; }
