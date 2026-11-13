@@ -361,6 +361,16 @@ describe("예금(합계 제외 분류)", () => {
     expect(stats.byMethod).toEqual([{ label: "신한", total: 10_000, share: 1 }]);
   });
 
+  it("결산에 예금 금액을 따로 알려 주고 예금이 없으면 null 이다", () => {
+    expect(monthStats([spend, save], NOV).savings).toBe(500_000);
+    expect(monthStats([spend], NOV).savings).toBeNull();
+    expect(monthStats([save, lastMonthSave], NOV).savings).toBe(500_000);
+  });
+
+  it("예금 이력을 볼 때는 하루 합계에 예금을 넣는다", () => {
+    expect(groupByDate([save], true)[0].total).toBe(500_000);
+  });
+
   it("예금만 있는 지난달은 지난달 기록이 없는 것과 같다", () => {
     expect(monthStats([spend, lastMonthSave], NOV).previousTotal).toBeNull();
   });

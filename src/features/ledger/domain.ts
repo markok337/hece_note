@@ -232,11 +232,11 @@ export interface DayGroup {
   total: number;
 }
 
-/** 날짜별로 묶는다. 최근 날짜가 위, 같은 날 안에서도 최근 항목이 위. */
-export function groupByDate(entries: readonly LedgerEntry[]): DayGroup[] {
+/** 날짜별로 묶는다. 최근 날짜가 위, 같은 날 안에서도 최근 항목이 위. 하루 합계에는 예금을 넣지 않는다(예금 이력을 볼 때만 countAll). */
+export function groupByDate(entries: readonly LedgerEntry[], countAll = false): DayGroup[] {
   const groups: DayGroup[] = [];
   for (const entry of sortNewestFirst(entries)) {
-    const counted = isCounted(entry) ? entry.amount : 0;
+    const counted = countAll || isCounted(entry) ? entry.amount : 0;
     const last = groups[groups.length - 1];
     if (last && last.date === entry.spent_on) {
       last.entries.push(entry);
@@ -275,6 +275,8 @@ export interface MonthStats {
   previousTotal: number | null;
   byCategory: Slice[];
   byMethod: Slice[];
+  /** 이 달 예금(합계 제외 분류)의 금액. 이 달에 예금 항목이 없으면 null. 결산에서 따로 보여 준다. */
+  savings: number | null;
 }
 
 function sliceBy(entries: readonly LedgerEntry[], pick: (entry: LedgerEntry) => string): Slice[] {
@@ -289,6 +291,7 @@ function sliceBy(entries: readonly LedgerEntry[], pick: (entry: LedgerEntry) => 
 /** 한 달의 합계, 지난달 합계, 분류별·구분별 합계. 합계에 넣지 않는 분류(예금)는 모두에서 뺀다. */
 export function monthStats(all: readonly LedgerEntry[], ref: MonthRef): MonthStats {
   const counted = all.filter(isCounted);
+  const saved = entriesInMonth(all, ref).filter((entry) => !isCounted(entry));
   const entries = entriesInMonth(counted, ref);
   const previous = entriesInMonth(counted, shiftMonth(ref, -1));
   return {
@@ -297,6 +300,7 @@ export function monthStats(all: readonly LedgerEntry[], ref: MonthRef): MonthSta
     previousTotal: previous.length === 0 ? null : previous.reduce((sum, entry) => sum + entry.amount, 0),
     byCategory: sliceBy(entries, (entry) => entry.category),
     byMethod: sliceBy(entries, (entry) => entry.method),
+    savings: saved.length === 0 ? null : saved.reduce((sum, entry) => sum + entry.amount, 0),
   };
 }
 

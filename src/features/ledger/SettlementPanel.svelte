@@ -1,7 +1,7 @@
 <script lang="ts">
   // 결산: 한 달의 합계, 예산과 차액, 분류별·구분별 막대. 한 장의 표처럼 띠 제목 아래에 줄이 이어진다.
   // 분류·구분 줄을 누르면 그 묶음의 이력을 보는 창을 연다. 예산은 여기서 보기만 하고 설정 탭에서 정한다.
-  import { budgetStatus, formatWon, type MonthStats, type Slice, type SliceKind } from "./domain";
+  import { SAVINGS_CATEGORY, budgetStatus, formatWon, type MonthStats, type Slice, type SliceKind } from "./domain";
 
   interface Props {
     stats: MonthStats;
@@ -26,7 +26,7 @@
 
 </script>
 
-{#snippet bars(title: string, kind: SliceKind, slices: Slice[])}
+{#snippet bars(title: string, kind: SliceKind, slices: Slice[], savings: number | null = null)}
   <h3 class="band">{title}</h3>
   <ul>
     {#each slices as slice (slice.label)}
@@ -40,6 +40,16 @@
         </button>
       </li>
     {/each}
+    {#if savings !== null}
+      <li class="savings">
+        <button type="button" class="slice" aria-label="{SAVINGS_CATEGORY} 이력 보기" onclick={() => onpick(kind, SAVINGS_CATEGORY)}>
+          <span class="label">
+            <span>{SAVINGS_CATEGORY}</span>
+            <span class="value">{formatWon(savings)} <i aria-hidden="true">›</i></span>
+          </span>
+        </button>
+      </li>
+    {/if}
   </ul>
 {/snippet}
 
@@ -69,9 +79,9 @@
       <p class="cell hint">설정 탭에서 예산을 정하면 남은 금액을 볼 수 있다.</p>
     {/if}
 
-    {#if stats.count > 0}
-      {@render bars("분류별", "category", stats.byCategory)}
-      {@render bars("구분별", "method", stats.byMethod)}
+    {#if stats.count > 0 || stats.savings !== null}
+      {@render bars("분류별", "category", stats.byCategory, stats.savings)}
+      {#if stats.count > 0}{@render bars("구분별", "method", stats.byMethod)}{/if}
     {:else}
       <p class="cell hint">이 달의 지출이 없다.</p>
     {/if}
@@ -102,6 +112,8 @@
 
   ul { list-style: none; margin: 0; padding: 0; }
   li + li { border-top: 1px solid var(--line); }
+  /* 예금은 합계에 들어가지 않으므로 지출 줄들과 선으로 떨어뜨린다. */
+  li.savings { border-top: 1px solid var(--line-strong); }
   /* 줄 하나 전체가 버튼이다. 글자는 본문 색이고, 막대 하나만 강조색이다. */
   .slice {
     display: flex;

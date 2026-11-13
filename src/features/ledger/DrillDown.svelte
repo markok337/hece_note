@@ -1,7 +1,7 @@
 <script lang="ts">
   // 통계에서 고른 분류(또는 구분)의 이번 달 이력을 날짜별 표로 보여 주는 창의 내용. 보기만 한다.
   import EntryList from "./EntryList.svelte";
-  import { formatWon, groupByDate, type LedgerEntry, type SliceKind } from "./domain";
+  import { SAVINGS_CATEGORY, formatWon, groupByDate, type LedgerEntry, type SliceKind } from "./domain";
 
   interface Props {
     kind: SliceKind;
@@ -15,7 +15,8 @@
 
   const kindLabel = $derived(kind === "category" ? "분류" : "구분");
   const total = $derived(entries.reduce((sum, entry) => sum + entry.amount, 0));
-  const groups = $derived(groupByDate(entries));
+  // 예금의 이력은 하루 합계도 예금 금액으로 보여 준다.
+  const groups = $derived(groupByDate(entries, kind === "category" && label === SAVINGS_CATEGORY));
 </script>
 
 <section class="drill">
