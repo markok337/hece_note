@@ -6,7 +6,7 @@ import type { NewSms } from "./store.svelte";
 
 interface SmsInboxPlugin {
   read(options: { senders: string[]; since: number }): Promise<{ messages: Array<{ sender: string; date: number; body: string }> }>;
-  summary(options: { since: number }): Promise<{ total: number; senders: Array<{ sender: string; count: number }> }>;
+  summary(options: { since: number }): Promise<{ total: number; mms?: number; senders: Array<{ sender: string; count: number }> }>;
 }
 
 const SmsInbox = registerPlugin<SmsInboxPlugin>("SmsInbox");
@@ -31,10 +31,12 @@ export function smsKey(sender: string, receivedAt: number, body: string): string
  * 등록한 번호의 문자가 안 보일 때 쓰는 점검 문구. 문자함의 최근 30일 전체 건수와 번호별 건수를 보여 준다(본문은 읽지 않는다).
  */
 export async function inboxSummary(now = new Date()): Promise<string> {
-  const { total, senders } = await SmsInbox.summary({ since: smsCutoff(now) });
+  const { total, mms = 0, senders } = await SmsInbox.summary({ since: smsCutoff(now) });
   if (total === 0) return "문자함에 최근 30일 문자가 한 건도 없다.";
-  const top = [...senders].sort((a, b) => b.count - a.count).slice(0, 8);
-  return `문자함 최근 30일 ${total}건. 번호별: ${top.map((item) => `${item.sender || "(번호 없음)"} ${item.count}건`).join(", ")}`;
+  // 재난문자(#CMAS#…)는 많아서 목록을 채우므로 뺀다.
+  const shown = senders.filter((item) => !item.sender.startsWith("#CMAS#"));
+  const top = [...shown].sort((a, b) => b.count - a.count).slice(0, 12);
+  return `문자함 최근 30일 ${total}건(장문·사진 ${mms}건). 번호별: ${top.map((item) => `${item.sender || "(번호 없음)"} ${item.count}건`).join(", ")}`;
 }
 
 /**

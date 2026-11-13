@@ -69,13 +69,15 @@ describe("문자 읽기", () => {
 describe("문자함 점검", () => {
   it("전체 건수와 번호별 건수를 많은 순으로 보여 준다", async () => {
     plugin.summary.mockResolvedValue({
-      total: 5,
+      total: 9,
+      mms: 2,
       senders: [
         { sender: "0101234", count: 1 },
+        { sender: "#CMAS#Severe", count: 4 },
         { sender: "15888700", count: 4 },
       ],
     });
-    expect(await inboxSummary(NOW)).toBe("문자함 최근 30일 5건. 번호별: 15888700 4건, 0101234 1건");
+    expect(await inboxSummary(NOW)).toBe("문자함 최근 30일 9건(장문·사진 2건). 번호별: 15888700 4건, 0101234 1건");
     expect(plugin.summary).toHaveBeenCalledWith({ since: Date.parse("2026-10-14T03:00:00Z") });
   });
 
