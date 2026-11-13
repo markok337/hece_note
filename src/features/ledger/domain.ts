@@ -438,6 +438,37 @@ function sameValues(a: SampleValues, b: SampleValues): boolean {
  * - 금액이 문자 본문에 없으면 규칙을 만들 수 없어 남기지 않는다.
  * - 이미 같은 모양의 견본이 있거나 견본이 가득 찼으면 남기지 않는다.
  */
+/** RCS 카드 메시지(JSON)에서 글 조각을 화면에 나온 순서대로 모은다. */
+function collectTexts(node: unknown, out: string[]): void {
+  if (Array.isArray(node)) {
+    for (const item of node) collectTexts(item, out);
+    return;
+  }
+  if (typeof node !== "object" || node === null) return;
+  const record = node as Record<string, unknown>;
+  if (record.widget === "TextView" && typeof record.text === "string" && record.text.trim()) out.push(record.text.trim());
+  collectTexts(record.children, out);
+}
+
+/**
+ * 삼성 메시지의 RCS 카드 메시지는 본문이 화면 모양을 적은 JSON 으로 저장된다. 그 안의 글(TextView 의 text)만 순서대로
+ * 이어 일반 문자처럼 바꾼다. 일반 문자이거나 읽을 수 없는 모양이면 본문을 그대로 돌려준다.
+ */
+export function plainBody(body: string): string {
+  if (!body.trimStart().startsWith("{")) return body;
+  let data: unknown;
+  try {
+    data = JSON.parse(body);
+  } catch {
+    return body;
+  }
+  const lines: string[] = [];
+  collectTexts((data as { layout?: unknown }).layout, lines);
+  if (lines.length === 0) return body;
+  const header = (data as { messageHeader?: unknown }).messageHeader;
+  return [typeof header === "string" ? header : "", ...lines].filter(Boolean).join("\n");
+}
+
 export function newSample(body: string, final: SampleValues, guess: SampleValues | null, samples: readonly SmsSample[]): SmsSample | null {
   if (guess && sameValues(guess, final)) return null;
   const values = locateValues(body, final);

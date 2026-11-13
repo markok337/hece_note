@@ -16,6 +16,7 @@ import {
   monthStats,
   newSample,
   parseAmount,
+  plainBody,
   parseBudget,
   parseSender,
   SAMPLES_MAX,
@@ -446,5 +447,40 @@ describe("문자 견본", () => {
     expect(newSample(BODY, FINAL, null, [other])).toBeNull();
     const full = Array.from({ length: SAMPLES_MAX }, (_, i) => ({ body: `다른 ${"가".repeat(i + 1)} 5,000원`, values: { amount: 5000 } }));
     expect(newSample(BODY, FINAL, null, full)).toBeNull();
+  });
+});
+
+describe("RCS 카드 메시지 풀어 읽기", () => {
+  const card = JSON.stringify({
+    messageHeader: "[Web발신]",
+    card: "open_rich_card",
+    layout: {
+      widget: "LinearLayout",
+      children: [
+        { widget: "TextView", text: "승인", textSize: "1dp" },
+        { widget: "ImageView", mediaUrl: "https://example.com/a.png" },
+        {
+          widget: "LinearLayout",
+          children: [{ widget: "TextView", text: "● 우리카드 이용안내\n우리(5485)승인\n오*연님\n5,000원 일시불\n11/12 17:33\n이두부야 고덕점\n누적54,150원" }],
+        },
+      ],
+    },
+    suggestions: [{ action: { displayText: "내 카드실적/혜택 확인" } }],
+  });
+
+  it("화면에 나온 글만 순서대로 이어 일반 문자처럼 만든다", () => {
+    expect(plainBody(card)).toBe(
+      "[Web발신]\n승인\n● 우리카드 이용안내\n우리(5485)승인\n오*연님\n5,000원 일시불\n11/12 17:33\n이두부야 고덕점\n누적54,150원",
+    );
+  });
+
+  it("일반 문자와 읽을 수 없는 본문은 그대로 돌려준다", () => {
+    expect(plainBody("[Web발신] 승인 5,600원")).toBe("[Web발신] 승인 5,600원");
+    expect(plainBody("{깨진 JSON")).toBe("{깨진 JSON");
+    expect(plainBody('{"layout":{"widget":"LinearLayout"}}')).toBe('{"layout":{"widget":"LinearLayout"}}');
+  });
+
+  it("이미 풀어 쓴 글에 다시 써도 바뀌지 않는다", () => {
+    expect(plainBody(plainBody(card))).toBe(plainBody(card));
   });
 });

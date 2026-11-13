@@ -55,6 +55,14 @@ describe("문자 읽기", () => {
     ]);
   });
 
+  it("RCS 카드 메시지(JSON)는 풀어 쓴 본문으로 저장하고, 식별값은 원본 본문으로 만든다", async () => {
+    const raw = JSON.stringify({ messageHeader: "[Web발신]", layout: { widget: "TextView", children: [{ widget: "TextView", text: "승인 5,000원" }] } });
+    plugin.read.mockResolvedValue({ messages: [{ sender: "15889955", date: Date.parse("2026-11-12T08:33:00Z"), body: raw }] });
+    const [message] = await readSms([card("우리", "15889955")], NOW);
+    expect(message.body).toBe("[Web발신]\n승인 5,000원");
+    expect(message.sms_key).toBe(smsKey("15889955", Date.parse("2026-11-12T08:33:00Z"), raw));
+  });
+
   it("등록한 카드가 없으면 플러그인을 부르지 않는다", async () => {
     expect(await readSms([], NOW)).toEqual([]);
     expect(plugin.read).not.toHaveBeenCalled();

@@ -1,7 +1,7 @@
 // 폰의 문자함 읽기. 안드로이드 앱(APK)의 SmsInbox 플러그인을 부른다. 웹(브라우저·PWA)에서는 문자를 읽을 수 없다.
 
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { smsCutoff, type Card } from "./domain";
+import { plainBody, smsCutoff, type Card } from "./domain";
 import type { NewSms } from "./store.svelte";
 
 interface SmsInboxPlugin {
@@ -55,6 +55,6 @@ export async function readSms(cards: readonly Card[], now = new Date()): Promise
     sms_key: smsKey(message.sender, message.date, message.body),
     sender: message.sender,
     received_at: new Date(message.date).toISOString(),
-    body: message.body,
+    body: plainBody(message.body),
   }));
 }

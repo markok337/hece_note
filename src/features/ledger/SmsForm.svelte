@@ -3,7 +3,7 @@
   // 분류는 정해 두지 않으므로 직접 고르기 전에는 추가할 수 없다. 사용자가 고쳐 채운 값이 새 모양이면 카드의 견본으로 남긴다.
   import { untrack } from "svelte";
   import { notice } from "../../core/notice.svelte";
-  import { CASH, MEMO_MAX, newSample, parseAmount, validateMemo, type SmsRow } from "./domain";
+  import { CASH, MEMO_MAX, newSample, parseAmount, plainBody, validateMemo, type SmsRow } from "./domain";
   import { guessFromSms } from "./sms-guess";
   import { ledger } from "./store.svelte";
 
@@ -16,7 +16,9 @@
 
   // 입력칸은 양식이 열릴 때의 문자로 시작한다. 부모가 {#key} 로 문자마다 새로 연다.
   const initial = untrack(() => sms);
-  const guess = guessFromSms(initial.body, initial.received_at);
+  // 이미 쌓인 문자가 JSON 모양이어도 풀어서 쓴다.
+  const text = plainBody(initial.body);
+  const guess = guessFromSms(text, initial.received_at);
   const card = ledger.cardList().find((item) => item.sender === initial.sender);
 
   let spentOn = $state(guess?.spent_on ?? "");
@@ -49,7 +51,7 @@
         sms_key: initial.sms_key,
       });
       if (!saved) return;
-      const sample = card ? newSample(initial.body, { spent_on: spentOn, amount: amount.value, merchant: memo }, guess, card.samples) : null;
+      const sample = card ? newSample(text, { spent_on: spentOn, amount: amount.value, merchant: memo }, guess, card.samples) : null;
       const learned = sample && card ? await ledger.addSample(card.id, sample) : false;
       notice.say("ok", learned ? "추가했다. 이 모양의 문자를 견본으로 저장했다." : "추가했다.");
       onback();
@@ -69,7 +71,7 @@
     <h2>문자로 지출 추가</h2>
   </div>
 
-  <p class="body">{initial.body}</p>
+  <p class="body">{text}</p>
 
   <label>
     <span>날짜</span>
