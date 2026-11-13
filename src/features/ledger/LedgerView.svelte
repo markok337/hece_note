@@ -5,7 +5,6 @@
   import { session } from "../../core/session.svelte";
   import Modal from "../../ui/Modal.svelte";
   import BudgetStrip from "./BudgetStrip.svelte";
-  import CardManager from "./CardManager.svelte";
   import CategoryTrend from "./CategoryTrend.svelte";
   import DrillDown from "./DrillDown.svelte";
   import EntryForm from "./EntryForm.svelte";
@@ -14,10 +13,10 @@
   import SettingsPanel from "./SettingsPanel.svelte";
   import SettlementPanel from "./SettlementPanel.svelte";
   import { SAVINGS_CATEGORY, entriesBy, groupByDate, isCounted, monthStats, type LedgerEntry, type SliceKind } from "./domain";
-  import { fetchMockSms, type MockSmsResult } from "./mock-sms";
+  import { fetchMockSms } from "./mock-sms";
   import { ledger } from "./store.svelte";
 
-  // 가계부 안의 탭. 목록은 지출 표, 결산은 한 달 정리, 통계는 분류별 월 추이, 설정은 예산과 분류다.
+  // 가계부 안의 탭. 목록은 지출 표, 결산은 한 달 정리, 통계는 분류별 월 추이, 설정은 예산·분류·카드다.
   const VIEWS = [
     { id: "list", label: "목록" },
     { id: "settlement", label: "결산" },
@@ -32,9 +31,9 @@
   let trendCategory = $state<string | null>(null);
   // 지출 창: "new" 는 새로 적기, 항목은 고치기, null 은 닫힘.
   let editing = $state<LedgerEntry | "new" | null>(null);
-  let cardsOpen = $state(false);
   let importing = $state(false);
-  let importResult = $state<MockSmsResult | null>(null);
+  // 문자함의 처리 필요 문자를 보는 창.
+  let inboxOpen = $state(false);
   // 결산에서 눌러 연 이력 창. 고른 분류(또는 구분)의 이름을 가진다.
   let drill = $state<{ kind: SliceKind; label: string } | null>(null);
 
@@ -56,21 +55,22 @@
     month = { year: parseYmd(clock.today).year, month: parseYmd(clock.today).month };
   }
 
-  /** 등록한 번호의 새 결제 문자를 불러와 확인 창을 연다. 지금은 모의 문자를 쓴다. */
+  /** 등록한 번호의 최근 문자를 문자함에 쌓고, 처리가 필요한 문자를 보여 준다. 지금은 모의 문자를 쓴다. */
   async function startImport(): Promise<void> {
     if (ledger.cardList().length === 0) {
-      notice.say("err", "먼저 카드와 발신번호를 등록한다.");
-      cardsOpen = true;
+      notice.say("err", "먼저 설정 탭에서 카드와 발신번호를 등록한다.");
+      view = "settings";
       return;
     }
     importing = true;
     try {
-      const result = await fetchMockSms(ledger.cardList(), ledger.knownSmsKeys(), clock.today);
-      if (result.candidates.length === 0 && result.unparsed.length === 0) {
-        notice.say("ok", "새 결제 문자가 없다.");
+      const messages = await fetchMockSms(ledger.cardList(), clock.today);
+      if (!(await ledger.receiveSms(messages))) return;
+      if (ledger.pendingSms().length === 0) {
+        notice.say("ok", "처리할 문자가 없다.");
         return;
       }
-      importResult = result;
+      inboxOpen = true;
     } finally {
       importing = false;
     }
@@ -85,11 +85,6 @@
     <span class="spacer"></span>
     <button type="button" class="sub import" aria-label="문자 불러오기" disabled={importing} onclick={startImport}>
       {importing ? "불러오는 중…" : "불러오기"}
-    </button>
-    <button type="button" class="sub icon" aria-label="카드 · 발신번호" onclick={() => (cardsOpen = true)}>
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" />
-      </svg>
     </button>
     <button type="button" class="sub icon" aria-label="로그아웃" onclick={() => session.logout()}>
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -153,15 +148,9 @@
     </Modal>
   {/if}
 
-  {#if cardsOpen}
-    <Modal fixed label="카드 · 발신번호" onclose={() => (cardsOpen = false)}>
-      <CardManager />
-    </Modal>
-  {/if}
-
-  {#if importResult}
-    <Modal fixed label="불러온 결제" onclose={() => (importResult = null)}>
-      <ImportPreview result={importResult} onclose={() => (importResult = null)} />
+  {#if inboxOpen}
+    <Modal fixed label="처리 필요한 문자" onclose={() => (inboxOpen = false)}>
+      <ImportPreview onclose={() => (inboxOpen = false)} />
     </Modal>
   {/if}
 </div>

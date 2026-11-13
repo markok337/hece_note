@@ -40,14 +40,47 @@ export interface LedgerEntry {
   created_at: string;
 }
 
+/** 문자함에 쌓아 두는 기간(일). 이보다 오래된 문자는 지운다. */
+export const SMS_KEEP_DAYS = 30;
+/** 카드 하나에 둘 수 있는 견본 수. */
+export const SAMPLES_MAX = 20;
+
+/** 사용자가 문자 한 통에서 확정한 값. 문자에 없던 값은 규칙이 될 수 없어 담지 않는다. */
+export interface SampleValues {
+  spent_on?: string;
+  amount?: number;
+  merchant?: string;
+}
+
+/** 읽는 규칙의 바탕이 되는 견본: 문자 본문과 그 문자에서 사용자가 확정한 값. */
+export interface SmsSample {
+  body: string;
+  values: SampleValues;
+}
+
 export interface Card {
   id: string;
   name: string;
   /** 결제 문자를 보내는 번호. 숫자만. */
   sender: string;
-  /** 이 번호로 온 문자의 모양을 알려 주는 견본. 결제·취소처럼 종류마다 하나씩. */
-  samples: string[];
+  /** 이 번호로 온 문자의 모양을 알려 주는 견본. 사용자가 고쳐 채운 문자가 새 모양이면 하나 늘어난다. */
+  samples: SmsSample[];
   created_at: string;
+}
+
+/** 문자함 상태. pending 은 처리 필요, done 은 항목으로 추가함, ignored 는 무시함. */
+export type SmsStatus = "pending" | "done" | "ignored";
+
+/** 문자함의 한 줄. 등록한 번호로 온 문자 한 통이다. */
+export interface SmsRow {
+  id: string;
+  /** 같은 문자를 두 번 쌓지 않는 식별값. */
+  sms_key: string;
+  sender: string;
+  /** 받은 시각(ISO). */
+  received_at: string;
+  body: string;
+  status: SmsStatus;
 }
 
 /** 분류 목록의 한 줄. position 이 선택지의 순서다. */
@@ -64,24 +97,6 @@ export interface BudgetRow {
   scope: BudgetScope;
   month: string | null;
   amount: number;
-}
-
-/** 문자에서 읽어 낸 결제 한 건. 사용자가 확인하기 전까지는 항목이 아니다. */
-export interface SmsCandidate {
-  key: string;
-  spent_on: string;
-  method: string;
-  merchant: string;
-  /** 승인은 양수, 취소는 음수. */
-  amount: number;
-  category: Category;
-}
-
-/** 읽지 못한 문자. 조용히 버리지 않고 목록으로 보여 준다. */
-export interface SmsUnparsed {
-  key: string;
-  method: string;
-  raw: string;
 }
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string };
@@ -133,12 +148,9 @@ export function parseSender(raw: string, existing: readonly Card[]): Parsed<stri
   return { ok: true, value: digits };
 }
 
-/** 견본 입력칸의 글자를 빈 줄 기준으로 나눠 문자 하나씩의 목록으로 만든다. */
-export function splitSamples(raw: string): string[] {
-  return raw
-    .split(/\n\s*\n/)
-    .map((sample) => sample.trim())
-    .filter((sample) => sample !== "");
+/** 문자함에 남겨 둘 가장 이른 받은 시각(ms). 이보다 앞선 문자는 쌓지도 않고 있으면 지운다. */
+export function smsCutoff(now: Date): number {
+  return now.getTime() - SMS_KEEP_DAYS * 24 * 60 * 60 * 1000;
 }
 
 /** 새 항목이 위로 오는 순서. 날짜가 같으면 나중에 넣은 항목이 위다. */

@@ -1,15 +1,14 @@
 <script lang="ts">
-  // 카드 이름과 결제 문자를 보내는 번호를 등록하는 창의 내용. 문자 불러오기는 여기 등록한 번호의 문자만 읽는다.
+  // 카드 설정. 카드 이름(구분)과 결제 문자를 보내는 번호를 등록한다. 문자 불러오기는 여기 등록한 번호의 문자만 읽는다.
   import { notice } from "../../core/notice.svelte";
   import ConfirmButton from "../../ui/ConfirmButton.svelte";
-  import { CARD_NAME_MAX, parseSender, splitSamples, validateCardName } from "./domain";
+  import { CARD_NAME_MAX, parseSender, validateCardName } from "./domain";
   import { ledger } from "./store.svelte";
 
   const cards = $derived(ledger.cardList());
 
   let name = $state("");
   let sender = $state("");
-  let sampleText = $state("");
 
   async function add(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -18,30 +17,20 @@
     const number = parseSender(sender, cards);
     if (!number.ok) return notice.say("err", number.reason);
 
-    const saved = await ledger.addCard({ name: name.trim(), sender: number.value, samples: splitSamples(sampleText) });
+    const saved = await ledger.addCard({ name: name.trim(), sender: number.value, samples: [] });
     if (!saved) return;
     name = "";
     sender = "";
-    sampleText = "";
   }
-
 </script>
 
-<section class="cards">
-  <h2>카드 · 발신번호</h2>
-  <p class="help">여기 등록한 번호로 온 문자만 읽는다. 다른 사람과 주고받은 문자는 읽지 않는다.</p>
+<div class="sheet">
+  <h2 class="band">카드 · 발신번호</h2>
+  <p class="help">여기 등록한 번호로 온 문자만 읽는다. 다른 사람과 주고받은 문자는 읽지 않는다. 카드 이름은 지출의 구분이 된다.</p>
 
   <form class="add" onsubmit={add}>
-    <div class="line">
-      <input bind:value={name} maxlength={CARD_NAME_MAX} placeholder="카드 이름" aria-label="카드 이름" />
-      <input bind:value={sender} inputmode="tel" placeholder="발신번호" aria-label="발신번호" />
-    </div>
-    <textarea
-      bind:value={sampleText}
-      rows="3"
-      placeholder="결제 문자 견본 (선택). 결제·취소처럼 종류마다 하나씩, 빈 줄로 나눠 붙여 넣는다."
-      aria-label="결제 문자 견본"
-    ></textarea>
+    <input bind:value={name} maxlength={CARD_NAME_MAX} placeholder="카드 이름" aria-label="카드 이름" />
+    <input bind:value={sender} inputmode="tel" placeholder="발신번호" aria-label="발신번호" />
     <button type="submit">등록</button>
   </form>
 
@@ -59,34 +48,19 @@
       {/each}
     </ul>
   {/if}
-</section>
+</div>
 
 <style>
-  .cards { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-  h2 { flex-shrink: 0; margin: 0; font-size: 1.05rem; }
-  .help { flex-shrink: 0; margin: 0; font-size: 0.8rem; color: var(--muted); }
+  .help { margin: 0; padding: 8px 10px 0; font-size: 0.8rem; color: var(--muted); }
 
-  .add { flex-shrink: 0; flex-direction: column; gap: 6px; }
-  .line { display: flex; gap: 6px; }
-  .line input { flex: 1 1 0; padding: 9px 8px; font-size: 0.9rem; }
-  textarea {
-    width: 100%;
-    padding: 9px 8px;
-    font: inherit;
-    font-size: 0.85rem;
-    color: var(--text);
-    background: var(--panel);
-    border: 1px solid var(--line-strong);
-    border-radius: 8px;
-    resize: none;
-  }
-  textarea::placeholder { color: #64748b; }
-  textarea:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 1px; }
-  .add button { padding: 9px 12px; font-size: 0.9rem; }
+  .add { gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .add input { flex: 1 1 0; min-width: 0; padding: 9px 8px; font-size: 0.9rem; }
+  .add button { flex-shrink: 0; padding: 0 16px; font-size: 0.9rem; }
 
-  ul { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
+  ul { list-style: none; margin: 0; padding: 0 10px; }
   li { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); }
+  li:first-child { border-top: 0; }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
   .sender, .count { flex-shrink: 0; font-size: 0.75rem; color: var(--muted); }
-  .empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  .empty { margin: 0; padding: 8px 10px; color: var(--muted); font-size: 0.9rem; }
 </style>

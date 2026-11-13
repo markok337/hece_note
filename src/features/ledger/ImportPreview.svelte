@@ -1,108 +1,110 @@
 <script lang="ts">
-  // 문자에서 읽은 결제를 항목으로 만들기 전에 보여 주는 확인 창의 내용. 고르고 분류를 정한 것만 추가한다.
-  import { untrack } from "svelte";
+  // 문자함의 "처리 필요" 문자를 보여 주는 창의 내용. 분류를 고른 문자만 항목으로 추가하고, 추가하지 않을 문자는 무시로 치운다.
+  // 값이 읽힌 문자는 날짜·금액·가맹점이 미리 채워져 있다. 읽지 못한 문자는 본문만 보인다(양식에 직접 채우는 화면은 다음 단계).
   import { notice } from "../../core/notice.svelte";
-  import { defaultCategory, formatWon, type Category, type SmsCandidate, type SmsUnparsed } from "./domain";
-  import type { MockSmsResult } from "./mock-sms";
+  import { formatWon, type SmsRow } from "./domain";
+  import { guessFromMock, type Guess } from "./mock-sms";
   import { ledger } from "./store.svelte";
 
   interface Props {
-    result: MockSmsResult;
     onclose: () => void;
   }
 
-  const { result, onclose }: Props = $props();
+  const { onclose }: Props = $props();
 
   interface Row {
-    candidate: SmsCandidate;
-    checked: boolean;
-    category: Category;
+    sms: SmsRow;
+    method: string;
+    guess: Guess | null;
   }
 
-  // 창이 열릴 때 받은 결과를 한 번만 읽는다. 열려 있는 동안 result 는 바뀌지 않는다.
-  const initial = untrack(() => result);
-  // 문자에서 짐작한 분류가 설정에서 지워졌으면 기본 분류로 시작한다.
-  let rows = $state<Row[]>(
-    initial.candidates.map((candidate) => ({
-      candidate,
-      checked: true,
-      category: ledger.categories.includes(candidate.category) ? candidate.category : defaultCategory(ledger.categories),
+  // 문자 id 별로 고른 분류. 고르지 않은 문자는 추가하지 않는다.
+  let chosen = $state<Record<string, string>>({});
+
+  const cards = $derived(ledger.cardList());
+  const rows = $derived<Row[]>(
+    ledger.pendingSms().map((sms) => ({
+      sms,
+      method: cards.find((card) => card.sender === sms.sender)?.name ?? sms.sender,
+      guess: guessFromMock(sms.body, sms.received_at),
     })),
   );
-  const categories = ledger.categories;
-  const unparsed: SmsUnparsed[] = initial.unparsed;
-  const checkedCount = $derived(rows.filter((row) => row.checked).length);
+  // 값이 모두 읽힌 문자만 추가할 수 있다. 금액·날짜가 비면 항목을 만들 수 없다.
+  const complete = (row: Row): boolean => row.guess?.amount !== undefined && row.guess.spent_on !== undefined;
+  const addable = $derived(rows.filter((row) => complete(row) && chosen[row.sms.id]));
 
-  async function confirm(): Promise<void> {
-    const chosen = rows.filter((row) => row.checked);
+  async function add(): Promise<void> {
+    const targets = addable;
     const saved = await ledger.addEntries(
-      chosen.map(({ candidate, category }) => ({
-        spent_on: candidate.spent_on,
-        method: candidate.method,
-        category,
-        amount: candidate.amount,
-        memo: candidate.merchant,
-        sms_key: candidate.key,
+      targets.map(({ sms, method, guess }) => ({
+        spent_on: guess!.spent_on!,
+        method,
+        category: chosen[sms.id],
+        amount: guess!.amount!,
+        memo: guess!.merchant ?? "",
+        sms_key: sms.sms_key,
       })),
     );
     if (!saved) return;
-    // 읽지 못한 안내문은 이번에 봤으니 다음 불러오기에서는 다시 보이지 않게 한다.
-    ledger.dismiss(unparsed.map((item) => item.key));
-    notice.say("ok", `${chosen.length}건을 추가했다.`);
-    onclose();
+    notice.say("ok", `${targets.length}건을 추가했다.`);
+    if (ledger.pendingSms().length === 0) onclose();
   }
 </script>
 
 <section class="preview">
-  <h2>불러온 결제 {rows.length}건</h2>
-  <p class="help">추가할 결제를 고르고 분류를 정한다. 체크를 푼 문자는 다음에 다시 불러온다.</p>
+  <h2>처리 필요 {rows.length}건</h2>
+  <p class="help">분류를 고른 문자만 추가한다. 추가하지 않을 문자는 무시한다. 추가하거나 무시한 문자는 다시 불러와도 나오지 않는다.</p>
 
-  <ul class="rows">
-    {#each rows as row (row.candidate.key)}
-      <li class:off={!row.checked}>
-        <label class="check">
-          <input type="checkbox" bind:checked={row.checked} aria-label="{row.candidate.merchant} 추가" />
-        </label>
-        <div class="info">
-          <span class="merchant">{row.candidate.merchant}{#if row.candidate.amount < 0}<em>취소</em>{/if}</span>
-          <span class="meta">{row.candidate.spent_on} · {row.candidate.method}</span>
-        </div>
-        <select bind:value={row.category} aria-label="{row.candidate.merchant} 분류">
-          {#each categories as option (option)}
-            <option value={option}>{option}</option>
-          {/each}
-        </select>
-        <span class="amount" class:refund={row.candidate.amount < 0}>{formatWon(row.candidate.amount)}</span>
-      </li>
-    {/each}
-
-    {#if unparsed.length > 0}
-      <li class="group">읽지 못한 문자 {unparsed.length}건</li>
-      {#each unparsed as item (item.key)}
-        <li class="raw"><span class="meta">{item.method}</span><span>{item.raw}</span></li>
+  {#if rows.length === 0}
+    <p class="empty">처리할 문자가 없다.</p>
+  {:else}
+    <ul class="rows">
+      {#each rows as row (row.sms.id)}
+        <li class:raw={!complete(row)}>
+          <div class="info">
+            <span class="merchant">
+              {row.guess?.merchant ?? "읽지 못한 문자"}{#if (row.guess?.amount ?? 0) < 0}<em>취소</em>{/if}
+            </span>
+            <span class="meta">{row.guess?.spent_on ?? row.sms.received_at.slice(0, 10)} · {row.method}</span>
+            {#if !complete(row)}<span class="body">{row.sms.body}</span>{/if}
+          </div>
+          {#if complete(row)}
+            <select bind:value={chosen[row.sms.id]} aria-label="{row.guess?.merchant} 분류">
+              <option value={undefined}>분류</option>
+              {#each ledger.categories as option (option)}
+                <option value={option}>{option}</option>
+              {/each}
+            </select>
+            <span class="amount" class:refund={(row.guess?.amount ?? 0) < 0}>{formatWon(row.guess!.amount!)}</span>
+          {/if}
+          <button type="button" class="sub ignore" aria-label="무시" onclick={() => ledger.ignoreSms([row.sms.id])}>무시</button>
+        </li>
       {/each}
-    {/if}
-  </ul>
+    </ul>
+  {/if}
 
-  <button type="button" class="go" disabled={checkedCount === 0} onclick={confirm}>{checkedCount}건 추가</button>
+  <div class="actions">
+    {#if ledger.ignoredCount > 0}
+      <button type="button" class="sub" onclick={() => ledger.resetIgnored()}>무시한 문자 {ledger.ignoredCount}건 되돌리기</button>
+    {/if}
+    <button type="button" class="go" disabled={addable.length === 0} onclick={add}>{addable.length}건 추가</button>
+  </div>
 </section>
 
 <style>
   .preview { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
   h2 { flex-shrink: 0; margin: 0; font-size: 1.05rem; }
   .help { flex-shrink: 0; margin: 0; font-size: 0.8rem; color: var(--muted); }
+  .empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
   .rows { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
   li { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); }
-  /* 체크를 푼 줄도 흐리게(투명도) 하지 않고 글자색만 보조색으로 바꿔 읽을 수 있게 둔다. */
-  li.off .merchant, li.off .amount { color: var(--muted); }
-
-  .check { flex-shrink: 0; display: flex; }
-  input[type="checkbox"] { flex: none; width: 20px; height: 20px; padding: 0; }
   .info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .merchant { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; font-weight: 700; }
   .merchant em { margin-left: 4px; font-size: 0.7rem; font-style: normal; color: var(--ok); }
   .meta { font-size: 0.72rem; color: var(--muted); }
+  .body { margin-top: 2px; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+  li.raw .merchant { color: var(--muted); }
   select {
     flex-shrink: 0;
     padding: 4px 2px;
@@ -114,9 +116,7 @@
   }
   .amount { flex: 0 0 5.2em; text-align: right; font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
   .amount.refund { color: var(--ok); }
+  .ignore { flex-shrink: 0; padding: 4px 8px; font-size: 0.8rem; }
 
-  .group { padding-top: 10px; font-size: 0.8rem; font-weight: 700; color: var(--muted); }
-  .raw { flex-direction: column; align-items: flex-start; gap: 0; font-size: 0.8rem; color: var(--muted); }
-
-  .go { flex-shrink: 0; }
+  .actions { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
 </style>

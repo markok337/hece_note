@@ -1,13 +1,14 @@
 // ledger_* 테이블 접근. Supabase 호출은 이 파일에만 둔다.
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import type { BudgetRow, Card, CategoryRow, LedgerEntry } from "./domain";
+import type { BudgetRow, Card, CategoryRow, LedgerEntry, SmsRow, SmsStatus } from "./domain";
 import { supabase } from "../../supabase";
 
 const ENTRY_COLUMNS = "id, spent_on, method, category, amount, memo, sms_key, created_at";
 const CARD_COLUMNS = "id, name, sender, samples, created_at";
 const CATEGORY_COLUMNS = "id, name, position, created_at";
 const BUDGET_COLUMNS = "id, scope, month, amount";
+const SMS_COLUMNS = "id, sms_key, sender, received_at, body, status";
 
 /** 서버 행에서 앱이 쓰는 컬럼만 남긴다. 실시간 알림에는 user_id 같은 컬럼이 섞여 온다. */
 export function pickEntry(row: LedgerEntry): LedgerEntry {
@@ -28,6 +29,11 @@ export function pickCategory(row: CategoryRow): CategoryRow {
 export function pickBudget(row: BudgetRow): BudgetRow {
   const { id, scope, month, amount } = row;
   return { id, scope, month, amount };
+}
+
+export function pickSms(row: SmsRow): SmsRow {
+  const { id, sms_key, sender, received_at, body, status } = row;
+  return { id, sms_key, sender, received_at, body, status };
 }
 
 function client() {
@@ -63,10 +69,10 @@ export async function fetchBudgetRules(): Promise<BudgetRow[]> {
   return data as BudgetRow[];
 }
 
-export async function fetchDismissed(): Promise<string[]> {
-  const { data, error } = await client().from("ledger_dismissed").select("sms_key");
+export async function fetchSms(): Promise<SmsRow[]> {
+  const { data, error } = await client().from("ledger_sms").select(SMS_COLUMNS);
   check(error);
-  return (data as Array<{ sms_key: string }>).map((row) => row.sms_key);
+  return data as SmsRow[];
 }
 
 export async function upsertEntry(entry: LedgerEntry): Promise<void> {
@@ -117,11 +123,26 @@ export async function deleteBudgetRule(id: string): Promise<void> {
   check((await client().from("ledger_budget_rules").delete().eq("id", id)).error);
 }
 
-export async function insertDismissed(keys: readonly string[]): Promise<void> {
+/** 새 문자를 쌓는다. 이미 있는 문자(같은 sms_key)는 건드리지 않아 완료·무시한 상태가 되돌아가지 않는다. */
+export async function insertSms(rows: readonly SmsRow[]): Promise<void> {
   const { error } = await client()
-    .from("ledger_dismissed")
-    .upsert(keys.map((sms_key) => ({ sms_key })), { onConflict: "user_id,sms_key", ignoreDuplicates: true });
+    .from("ledger_sms")
+    .upsert(rows.map(pickSms), { onConflict: "user_id,sms_key", ignoreDuplicates: true });
   check(error);
+}
+
+export async function setSmsStatus(ids: readonly string[], status: SmsStatus): Promise<void> {
+  check((await client().from("ledger_sms").update({ status }).in("id", ids)).error);
+}
+
+/** 무시한 문자를 모두 처리 필요로 되돌린다. */
+export async function resetIgnoredSms(): Promise<void> {
+  check((await client().from("ledger_sms").update({ status: "pending" }).eq("status", "ignored")).error);
+}
+
+/** 받은 시각이 cutoff(ISO) 이전인 문자를 지운다. */
+export async function deleteSmsBefore(cutoff: string): Promise<void> {
+  check((await client().from("ledger_sms").delete().lt("received_at", cutoff)).error);
 }
 
 export interface RowChange<T> {
@@ -135,8 +156,7 @@ export interface LedgerHandlers {
   onCard: (change: RowChange<Card>) => void;
   onCategory: (change: RowChange<CategoryRow>) => void;
   onBudget: (change: RowChange<BudgetRow>) => void;
-  /** 확인한 문자는 지우는 일이 없어 추가만 알린다. */
-  onDismissed: (smsKey: string) => void;
+  onSms: (change: RowChange<SmsRow>) => void;
   onStatus: (isLive: boolean) => void;
 }
 
@@ -165,10 +185,7 @@ export function subscribeLedger(handlers: LedgerHandlers): RealtimeChannel {
   watch("ledger_cards", pickCard, handlers.onCard);
   watch("ledger_categories", pickCategory, handlers.onCategory);
   watch("ledger_budget_rules", pickBudget, handlers.onBudget);
-  channel.on("postgres_changes", { event: "INSERT", schema: "public", table: "ledger_dismissed" }, (payload) => {
-    const row = payload.new as { sms_key?: string };
-    if (row.sms_key) handlers.onDismissed(row.sms_key);
-  });
+  watch("ledger_sms", pickSms, handlers.onSms);
   return channel.subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
 }
 

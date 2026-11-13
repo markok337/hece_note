@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_CATEGORIES, type CategoryRow } from "../../src/features/ledger/domain";
+import { DEFAULT_CATEGORIES, type CategoryRow, type SmsRow } from "../../src/features/ledger/domain";
 
 const repo = vi.hoisted(() => ({
   fetchEntries: vi.fn(),
   fetchCards: vi.fn(),
   fetchCategories: vi.fn(),
   fetchBudgetRules: vi.fn(),
-  fetchDismissed: vi.fn(),
+  fetchSms: vi.fn(),
   upsertEntry: vi.fn(),
   upsertEntries: vi.fn(),
   deleteEntry: vi.fn(),
@@ -18,17 +18,24 @@ const repo = vi.hoisted(() => ({
   deleteCategory: vi.fn(),
   upsertBudgetRule: vi.fn(),
   deleteBudgetRule: vi.fn(),
-  insertDismissed: vi.fn(),
+  insertSms: vi.fn(),
+  setSmsStatus: vi.fn(),
+  resetIgnoredSms: vi.fn(),
+  deleteSmsBefore: vi.fn(),
   subscribeLedger: vi.fn(),
   unsubscribe: vi.fn(),
 }));
 vi.mock("../../src/features/ledger/repo", () => repo);
 
-import { fetchMockSms } from "../../src/features/ledger/mock-sms";
+import { fetchMockSms, guessFromMock } from "../../src/features/ledger/mock-sms";
 import { ledger } from "../../src/features/ledger/store.svelte";
 
 const NOV = { year: 2026, month: 11 };
 const FIELDS = { spent_on: "2026-11-13", method: "현금", category: "식비", amount: 5000, memo: "점심" } as const;
+
+function sms(id: string, status: SmsRow["status"], receivedAt = "2026-11-13T03:00:00Z"): SmsRow {
+  return { id, sms_key: `key-${id}`, sender: "15888700", received_at: receivedAt, body: "본문", status };
+}
 
 function defaultRows(): CategoryRow[] {
   return DEFAULT_CATEGORIES.map((name, position) => ({ id: `c${position}`, name, position, created_at: "2026-11-01T00:00:00Z" }));
@@ -40,10 +47,10 @@ beforeEach(async () => {
   repo.fetchCards.mockResolvedValue([]);
   repo.fetchCategories.mockResolvedValue(defaultRows());
   repo.fetchBudgetRules.mockResolvedValue([]);
-  repo.fetchDismissed.mockResolvedValue([]);
+  repo.fetchSms.mockResolvedValue([]);
   for (const name of [
     "upsertEntry", "upsertEntries", "upsertCategories", "deleteEntry", "upsertCard", "deleteCard", "upsertCategory", "seedCategories",
-    "deleteCategory", "upsertBudgetRule", "deleteBudgetRule", "insertDismissed", "unsubscribe",
+    "deleteCategory", "upsertBudgetRule", "deleteBudgetRule", "insertSms", "setSmsStatus", "resetIgnoredSms", "deleteSmsBefore", "unsubscribe",
   ] as const) {
     repo[name].mockResolvedValue(undefined);
   }
@@ -81,7 +88,7 @@ describe("저장", () => {
     await vi.waitFor(() => expect(ledger.entriesIn(NOV)).toEqual([]));
   });
 
-  it("카드, 분류, 예산, 확인한 문자도 서버에 쓴다", async () => {
+  it("카드, 분류, 예산도 서버에 쓴다", async () => {
     await ledger.addCard({ name: "신한", sender: "15888700", samples: [] });
     await ledger.removeCard(ledger.cardList()[0].id);
     await ledger.addCategory("취미");
@@ -89,14 +96,12 @@ describe("저장", () => {
     await ledger.setBudget("base", 900_000, NOV);
     await ledger.setBudget("from", 1_000_000, NOV);
     await ledger.removeBudgetRule("from", "2026-11");
-    await ledger.dismiss(["x", "y"]);
     expect(repo.upsertCard).toHaveBeenCalledTimes(1);
     expect(repo.deleteCard).toHaveBeenCalledTimes(1);
     expect(repo.upsertCategory).toHaveBeenCalledWith(expect.objectContaining({ name: "취미", position: DEFAULT_CATEGORIES.length }));
     expect(repo.deleteCategory).toHaveBeenCalledWith("c0");
     expect(repo.upsertBudgetRule).toHaveBeenCalledWith(expect.objectContaining({ scope: "from", month: "2026-11-01" }));
     expect(repo.deleteBudgetRule).toHaveBeenCalledTimes(1);
-    expect(repo.insertDismissed).toHaveBeenCalledWith(["x", "y"]);
   });
 
   it("같은 달 예산을 다시 정하면 같은 행을 고쳐 쓴다", async () => {
@@ -106,11 +111,6 @@ describe("저장", () => {
     expect(second.id).toBe(first.id);
   });
 
-  it("이미 확인한 문자는 다시 쓰지 않는다", async () => {
-    await ledger.dismiss(["x"]);
-    await ledger.dismiss(["x"]);
-    expect(repo.insertDismissed).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe("분류 순서", () => {
@@ -136,16 +136,16 @@ describe("분류 순서", () => {
 });
 
 describe("불러오기", () => {
-  it("서버의 항목, 카드, 예산, 확인한 문자를 가져온다", async () => {
+  it("서버의 항목, 카드, 예산, 문자함을 가져온다", async () => {
     repo.fetchEntries.mockResolvedValue([{ id: "e1", ...FIELDS, sms_key: null, created_at: "2026-11-13T00:00:00Z" }]);
     repo.fetchCards.mockResolvedValue([{ id: "k1", name: "신한", sender: "15888700", samples: [], created_at: "2026-11-01T00:00:00Z" }]);
     repo.fetchBudgetRules.mockResolvedValue([{ id: "b1", scope: "from", month: "2026-10-01", amount: 800_000 }]);
-    repo.fetchDismissed.mockResolvedValue(["d1"]);
+    repo.fetchSms.mockResolvedValue([sms("s1", "pending")]);
     await ledger.load();
     expect(ledger.entriesIn(NOV)).toHaveLength(1);
     expect(ledger.cardList()).toHaveLength(1);
     expect(ledger.budgetFor(NOV)).toBe(800_000);
-    expect(ledger.knownSmsKeys().has("d1")).toBe(true);
+    expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["key-s1"]);
   });
 
   it("분류가 하나도 없으면 기본 분류를 채우고 다시 읽는다", async () => {
@@ -292,6 +292,72 @@ describe("분류", () => {
   });
 });
 
+describe("문자함", () => {
+  const NOW = new Date("2026-11-13T03:00:00Z");
+  const message = (key: string, receivedAt = "2026-11-12T03:00:00Z") => ({ sms_key: key, sender: "15888700", received_at: receivedAt, body: "본문" });
+
+  it("새 문자를 쌓고 처리 필요로 보여 준다", async () => {
+    await ledger.receiveSms([message("a"), message("b", "2026-11-13T01:00:00Z")], NOW);
+    expect(repo.insertSms).toHaveBeenCalledTimes(1);
+    expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["b", "a"]);
+  });
+
+  it("이미 있는 문자는 다시 쌓지 않는다", async () => {
+    await ledger.receiveSms([message("a")], NOW);
+    await ledger.receiveSms([message("a")], NOW);
+    expect(repo.insertSms).toHaveBeenCalledTimes(1);
+  });
+
+  it("30일이 지난 문자는 쌓지 않고, 쌓여 있던 것은 지운다", async () => {
+    repo.fetchSms.mockResolvedValue([sms("old", "pending", "2026-10-01T00:00:00Z")]);
+    await ledger.load();
+    await ledger.receiveSms([message("stale", "2026-10-01T00:00:00Z"), message("fresh")], NOW);
+    expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["fresh"]);
+    expect(repo.insertSms.mock.calls[0][0].map((row: SmsRow) => row.sms_key)).toEqual(["fresh"]);
+    expect(repo.deleteSmsBefore).toHaveBeenCalledWith("2026-10-14T03:00:00.000Z");
+  });
+
+  it("항목으로 추가하면 그 문자는 완료가 되어 다시 나오지 않는다", async () => {
+    await ledger.receiveSms([message("a"), message("b")], NOW);
+    await ledger.addEntry({ ...FIELDS, sms_key: "a" });
+    expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["b"]);
+    expect(repo.setSmsStatus).toHaveBeenCalledWith([expect.any(String)], "done");
+    // 같은 문자가 다시 들어와도 처리 필요로 돌아가지 않는다.
+    await ledger.receiveSms([message("a"), message("b")], NOW);
+    expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["b"]);
+  });
+
+  it("무시한 문자는 다시 불러와도 나오지 않고, 초기화하면 돌아온다", async () => {
+    await ledger.receiveSms([message("a")], NOW);
+    await ledger.ignoreSms([ledger.pendingSms()[0].id]);
+    expect(repo.setSmsStatus).toHaveBeenCalledWith([expect.any(String)], "ignored");
+    expect(ledger.pendingSms()).toEqual([]);
+    expect(ledger.ignoredCount).toBe(1);
+
+    await ledger.receiveSms([message("a")], NOW);
+    expect(ledger.pendingSms()).toEqual([]);
+
+    await ledger.resetIgnored();
+    expect(repo.resetIgnoredSms).toHaveBeenCalledTimes(1);
+    expect(ledger.ignoredCount).toBe(0);
+    expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["a"]);
+  });
+
+  it("항목이 이미 가리키는 문자는 완료 표시를 못 써도 처리 필요에 나오지 않는다", async () => {
+    repo.fetchEntries.mockResolvedValue([{ id: "e1", ...FIELDS, sms_key: "key-s1", created_at: "2026-11-13T00:00:00Z" }]);
+    repo.fetchSms.mockResolvedValue([sms("s1", "pending")]);
+    await ledger.load();
+    expect(ledger.pendingSms()).toEqual([]);
+  });
+
+  it("무시할 것이 없으면 서버에 쓰지 않는다", async () => {
+    expect(await ledger.ignoreSms(["none"])).toBe(true);
+    expect(await ledger.resetIgnored()).toBe(true);
+    expect(repo.setSmsStatus).not.toHaveBeenCalled();
+    expect(repo.resetIgnoredSms).not.toHaveBeenCalled();
+  });
+});
+
 describe("문자 불러오기(모의)", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -302,46 +368,27 @@ describe("문자 불러오기(모의)", () => {
   });
 
   async function load() {
-    const pending = fetchMockSms(ledger.cardList(), ledger.knownSmsKeys(), "2026-11-13");
+    const pending = fetchMockSms(ledger.cardList(), "2026-11-13");
     await vi.runAllTimersAsync();
     return pending;
   }
 
-  it("카드마다 승인·취소·읽지 못한 문자를 돌려준다", async () => {
+  it("카드마다 승인·취소·결제와 무관한 문자를 돌려준다", async () => {
     await ledger.addCard({ name: "신한", sender: "15888700", samples: [] });
-    const result = await load();
-    expect(result.candidates.every((c) => c.method === "신한")).toBe(true);
-    expect(result.candidates.some((c) => c.amount < 0)).toBe(true);
-    expect(result.unparsed).toHaveLength(1);
+    const messages = await load();
+    expect(messages.every((m) => m.sender === "15888700")).toBe(true);
+    const guesses = messages.map((m) => guessFromMock(m.body, m.received_at));
+    expect(guesses.filter((g) => g && g.amount! < 0)).toHaveLength(1);
+    expect(guesses.filter((g) => g === null)).toHaveLength(1);
+    expect(guesses[0]).toEqual({ spent_on: "2026-11-13", amount: 5600, merchant: "스타벅스" });
   });
 
-  it("추가한 문자는 다시 불러오지 않는다", async () => {
+  it("같은 카드에서는 매번 같은 문자 식별값이 나온다", async () => {
     await ledger.addCard({ name: "신한", sender: "15888700", samples: [] });
-    const first = await load();
-    await ledger.addEntries(
-      first.candidates.map((c) => ({
-        spent_on: c.spent_on,
-        method: c.method,
-        category: c.category,
-        amount: c.amount,
-        memo: c.merchant,
-        sms_key: c.key,
-      })),
-    );
-    await ledger.dismiss(first.unparsed.map((u) => u.key));
-    expect(await load()).toEqual({ candidates: [], unparsed: [] });
-  });
-
-  it("체크를 풀어 추가하지 않은 문자는 다음에 다시 나온다", async () => {
-    await ledger.addCard({ name: "신한", sender: "15888700", samples: [] });
-    const first = await load();
-    const [kept, ...skipped] = first.candidates;
-    await ledger.addEntry({ ...FIELDS, sms_key: kept.key });
-    const second = await load();
-    expect(second.candidates.map((c) => c.key)).toEqual(skipped.map((c) => c.key));
+    expect((await load()).map((m) => m.sms_key)).toEqual((await load()).map((m) => m.sms_key));
   });
 
   it("카드가 없으면 만들어 낼 문자도 없다", async () => {
-    expect(await load()).toEqual({ candidates: [], unparsed: [] });
+    expect(await load()).toEqual([]);
   });
 });

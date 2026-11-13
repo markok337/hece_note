@@ -1,8 +1,8 @@
-// 화면이 구독하는 가계부 상태(지출 항목, 카드, 분류, 예산 규칙, 확인한 문자). 냉장고 스토어와 같은 방식이다:
+// 화면이 구독하는 가계부 상태(지출 항목, 카드, 분류, 예산 규칙, 문자함). 냉장고 스토어와 같은 방식이다:
 // 낙관적으로 먼저 바꾸고, 저장에 실패하면 서버 값으로 되돌린다.
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import type { BudgetRow, BudgetRules, BudgetScope, Card, CategoryRow, LedgerEntry } from "./domain";
+import type { BudgetRow, BudgetRules, BudgetScope, Card, CategoryRow, LedgerEntry, SmsRow, SmsStatus } from "./domain";
 import {
   DEFAULT_CATEGORIES,
   SAVINGS_CATEGORY,
@@ -10,6 +10,7 @@ import {
   emptyBudgetRules,
   entriesInMonth,
   monthKey,
+  smsCutoff,
   sortNewestFirst,
 } from "./domain";
 import {
@@ -17,13 +18,16 @@ import {
   deleteCard,
   deleteCategory,
   deleteEntry,
+  deleteSmsBefore,
   fetchBudgetRules,
   fetchCards,
   fetchCategories,
-  fetchDismissed,
   fetchEntries,
-  insertDismissed,
+  fetchSms,
+  insertSms,
+  resetIgnoredSms,
   seedCategories,
+  setSmsStatus,
   subscribeLedger,
   unsubscribe,
   upsertBudgetRule,
@@ -42,6 +46,8 @@ const NOT_LOADED_MESSAGE = "아직 불러오지 못했다. 새로고침 후 다�
 
 export type NewEntry = Omit<LedgerEntry, "id" | "created_at" | "sms_key"> & { sms_key?: string | null };
 export type NewCard = Pick<Card, "name" | "sender" | "samples">;
+/** 폰에서 읽어 온 문자 한 통. 처리 상태는 문자함이 정한다. */
+export type NewSms = Omit<SmsRow, "id" | "status">;
 
 /** 실시간 알림 하나를 목록에 반영한다. */
 function applyChange<T>(map: Record<string, T>, change: RowChange<T>): void {
@@ -63,8 +69,8 @@ class LedgerStore {
   cards = $state<Record<string, Card>>({});
   categoryRows = $state<Record<string, CategoryRow>>({});
   budgetRows = $state<Record<string, BudgetRow>>({});
-  /** 가져오지 않기로 한 문자(읽지 못한 안내문 등)의 식별값. 다시 보여 주지 않는다. */
-  dismissed = $state<string[]>([]);
+  /** 문자함. 등록한 번호로 온 최근 30일치 문자와 처리 상태. */
+  sms = $state<Record<string, SmsRow>>({});
   loaded = $state(false);
   live = $state(false);
 
@@ -101,11 +107,11 @@ class LedgerStore {
     const seq = ++this.#loadSeq;
     const epoch = this.#epoch;
     try {
-      const [entries, cards, budgets, dismissed] = await Promise.all([
+      const [entries, cards, budgets, sms] = await Promise.all([
         fetchEntries(),
         fetchCards(),
         fetchBudgetRules(),
-        fetchDismissed(),
+        fetchSms(),
       ]);
       let categories = await fetchCategories();
       if (categories.length === 0) {
@@ -123,7 +129,7 @@ class LedgerStore {
       this.cards = toMap(cards);
       this.categoryRows = toMap(categories);
       this.budgetRows = toMap(budgets);
-      this.dismissed = dismissed;
+      this.sms = toMap(sms);
       this.loaded = true;
     } catch (err) {
       notice.say("err", `불러오기 실패: ${(err as Error).message}`);
@@ -137,7 +143,7 @@ class LedgerStore {
       onCard: (change) => this.#receive(() => applyChange(this.cards, change)),
       onCategory: (change) => this.#receive(() => applyChange(this.categoryRows, change)),
       onBudget: (change) => this.#receive(() => applyChange(this.budgetRows, change)),
-      onDismissed: (key) => this.#receive(() => (this.dismissed = [...new Set([...this.dismissed, key])])),
+      onSms: (change) => this.#receive(() => applyChange(this.sms, change)),
       onStatus: (isLive) => {
         this.live = isLive;
         // 끊겼다 다시 붙으면 그사이 놓친 변경을 다시 가져온다.
@@ -156,7 +162,7 @@ class LedgerStore {
     this.cards = {};
     this.categoryRows = {};
     this.budgetRows = {};
-    this.dismissed = [];
+    this.sms = {};
   }
 
   #receive(apply: () => void): void {
@@ -184,11 +190,29 @@ class LedgerStore {
     return Object.values(this.cards).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
   }
 
-  /** 이미 처리한 문자의 식별값. 문자 불러오기가 이 값을 건너뛴다. */
-  knownSmsKeys(): Set<string> {
-    const keys = new Set(this.dismissed);
-    for (const entry of Object.values(this.entries)) if (entry.sms_key) keys.add(entry.sms_key);
-    return keys;
+  /**
+   * 처리가 필요한 문자. 최근 것이 먼저다.
+   * 항목이 이미 그 문자를 가리키면(완료 표시를 서버에 쓰다 실패한 경우 등) 처리한 것으로 본다.
+   */
+  pendingSms(): SmsRow[] {
+    const done = new Set<string>();
+    for (const entry of Object.values(this.entries)) if (entry.sms_key) done.add(entry.sms_key);
+    return Object.values(this.sms)
+      .filter((row) => row.status === "pending" && !done.has(row.sms_key))
+      .sort((a, b) => Date.parse(b.received_at) - Date.parse(a.received_at) || (a.id < b.id ? -1 : 1));
+  }
+
+  /** 무시한 문자 수. */
+  get ignoredCount(): number {
+    return Object.values(this.sms).filter((row) => row.status === "ignored").length;
+  }
+
+  /** 문자함에서 keys 에 해당하는 처리 필요 줄을 완료로 바꾼 새 줄들. */
+  #doneRows(keys: readonly (string | null | undefined)[]): SmsRow[] {
+    const wanted = new Set(keys.filter((key): key is string => !!key));
+    return Object.values(this.sms)
+      .filter((row) => wanted.has(row.sms_key) && row.status !== "done")
+      .map((row) => ({ ...row, status: "done" as SmsStatus }));
   }
 
   /**
@@ -205,9 +229,16 @@ class LedgerStore {
 
   addEntry(input: NewEntry): Promise<boolean> {
     const entry = this.#newEntry(input);
+    const done = this.#doneRows([entry.sms_key]);
     return this.#write(
-      () => (this.entries[entry.id] = entry),
-      () => upsertEntry(entry),
+      () => {
+        this.entries[entry.id] = entry;
+        for (const row of done) this.sms[row.id] = row;
+      },
+      async () => {
+        await upsertEntry(entry);
+        if (done.length > 0) await setSmsStatus(done.map((row) => row.id), "done");
+      },
       "지출 추가 실패",
     );
   }
@@ -216,11 +247,16 @@ class LedgerStore {
   addEntries(inputs: readonly NewEntry[]): Promise<boolean> {
     const added = inputs.map((input) => this.#newEntry(input));
     if (added.length === 0) return Promise.resolve(true);
+    const done = this.#doneRows(added.map((entry) => entry.sms_key));
     return this.#write(
       () => {
         for (const entry of added) this.entries[entry.id] = entry;
+        for (const row of done) this.sms[row.id] = row;
       },
-      () => upsertEntries(added),
+      async () => {
+        await upsertEntries(added);
+        if (done.length > 0) await setSmsStatus(done.map((row) => row.id), "done");
+      },
       "지출 추가 실패",
     );
   }
@@ -342,14 +378,57 @@ class LedgerStore {
     );
   }
 
-  /** 읽지 못한 문자를 확인했다고 표시해 다음 불러오기에서 다시 보이지 않게 한다. */
-  dismiss(keys: readonly string[]): Promise<boolean> {
-    const fresh = [...new Set(keys)].filter((key) => !this.dismissed.includes(key));
-    if (fresh.length === 0) return Promise.resolve(true);
+  /**
+   * 폰에서 읽어 온 문자를 문자함에 쌓는다. 이미 있는 문자와 30일이 지난 문자는 쌓지 않고,
+   * 문자함에 남은 30일이 지난 줄은 지운다. 이미 있는 문자의 처리 상태는 그대로다.
+   */
+  receiveSms(messages: readonly NewSms[], now = new Date()): Promise<boolean> {
+    const cutoff = smsCutoff(now);
+    const known = new Set(Object.values(this.sms).map((row) => row.sms_key));
+    const fresh: SmsRow[] = [];
+    for (const message of messages) {
+      if (known.has(message.sms_key) || Date.parse(message.received_at) < cutoff) continue;
+      known.add(message.sms_key);
+      fresh.push({ ...message, id: crypto.randomUUID(), status: "pending" });
+    }
+    const expired = Object.values(this.sms).filter((row) => Date.parse(row.received_at) < cutoff);
+    if (fresh.length === 0 && expired.length === 0) return Promise.resolve(true);
     return this.#write(
-      () => (this.dismissed = [...this.dismissed, ...fresh]),
-      () => insertDismissed(fresh),
-      "문자 확인 표시 실패",
+      () => {
+        for (const row of expired) delete this.sms[row.id];
+        for (const row of fresh) this.sms[row.id] = row;
+      },
+      async () => {
+        if (fresh.length > 0) await insertSms(fresh);
+        await deleteSmsBefore(new Date(cutoff).toISOString());
+      },
+      "문자 저장 실패",
+    );
+  }
+
+  /** 추가하지 않을 문자를 무시로 치운다. 다음 불러오기에서도 처리 필요로 뜨지 않는다. */
+  ignoreSms(ids: readonly string[]): Promise<boolean> {
+    const rows = ids.map((id) => this.sms[id]).filter((row): row is SmsRow => !!row && row.status === "pending");
+    if (rows.length === 0) return Promise.resolve(true);
+    return this.#write(
+      () => {
+        for (const row of rows) this.sms[row.id] = { ...row, status: "ignored" };
+      },
+      () => setSmsStatus(rows.map((row) => row.id), "ignored"),
+      "문자 무시 실패",
+    );
+  }
+
+  /** 무시한 문자를 모두 처리 필요로 되돌린다. */
+  resetIgnored(): Promise<boolean> {
+    const rows = Object.values(this.sms).filter((row) => row.status === "ignored");
+    if (rows.length === 0) return Promise.resolve(true);
+    return this.#write(
+      () => {
+        for (const row of rows) this.sms[row.id] = { ...row, status: "pending" };
+      },
+      () => resetIgnoredSms(),
+      "무시 초기화 실패",
     );
   }
 }

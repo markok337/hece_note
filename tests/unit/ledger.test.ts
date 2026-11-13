@@ -16,7 +16,7 @@ import {
   parseAmount,
   parseBudget,
   parseSender,
-  splitSamples,
+  smsCutoff,
   validateCardName,
   validateCategoryName,
   type BudgetRules,
@@ -79,9 +79,9 @@ describe("카드 등록 검사", () => {
     expect(validateCardName("국민", [card("신한", "111")])).toBeNull();
   });
 
-  it("견본은 빈 줄로 나눠 문자 하나씩 자른다", () => {
-    expect(splitSamples("결제 A\n승인\n\n\n취소 B\n")).toEqual(["결제 A\n승인", "취소 B"]);
-    expect(splitSamples("  \n ")).toEqual([]);
+  it("문자함은 지금부터 30일 전까지만 남긴다", () => {
+    const now = new Date("2026-11-13T00:00:00Z");
+    expect(new Date(smsCutoff(now)).toISOString()).toBe("2026-10-14T00:00:00.000Z");
   });
 });
 

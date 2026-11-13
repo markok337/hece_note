@@ -1,12 +1,14 @@
 <script lang="ts">
-  // 가계부의 설정 탭: 예산과 분류. 구분(현금·카드)은 카드 등록을 따라가므로 여기서 정하지 않는다.
+  // 가계부의 설정 탭: 예산, 분류, 카드·발신번호. 구분(현금·카드)은 여기 등록한 카드 이름을 따라간다.
   import BudgetSettings from "./BudgetSettings.svelte";
+  import CardManager from "./CardManager.svelte";
   import CategorySettings from "./CategorySettings.svelte";
 </script>
 
 <div class="settings">
   <BudgetSettings />
   <CategorySettings />
+  <CardManager />
 </div>
 
 <style>

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ASSIGNEES, CATEGORIES, CHECKS } from "../../src/features/blog/domain";
 import { COMPARTMENTS, MAX_QUANTITY, NAME_MAX } from "../../src/features/fridge/domain";
-import { AMOUNT_MAX, CARD_NAME_MAX, CASH, CATEGORY_NAME_MAX, MEMO_MAX } from "../../src/features/ledger/domain";
+import { AMOUNT_MAX, CARD_NAME_MAX, CASH, CATEGORY_NAME_MAX, MEMO_MAX, SAMPLES_MAX, SMS_KEEP_DAYS } from "../../src/features/ledger/domain";
 
 const sql = readFileSync("supabase/migrations/0002_blog.sql", "utf-8");
 
@@ -82,6 +82,15 @@ describe("가계부: TS 규칙과 SQL 제약", () => {
 
   it("발신번호 자릿수가 같다", () => {
     expect(ledgerSql).toContain("sender ~ '^[0-9]{3,15}$'");
+  });
+
+  it("문자함 상태 선택지와 보관 기간, 견본 상한이 같다", () => {
+    const smsSql = readFileSync("supabase/migrations/0005_ledger_sms.sql", "utf-8");
+    const list = smsSql.match(/status in \(([^)]*)\)/)![1];
+    expect([...list.matchAll(/'([^']+)'/g)].map((m) => m[1])).toEqual(["pending", "done", "ignored"]);
+    expect(smsSql).toContain("sender ~ '^[0-9]{3,15}$'");
+    expect(smsSql).toContain(`jsonb_array_length(samples) <= ${SAMPLES_MAX}`);
+    expect(smsSql).toContain(`${SMS_KEEP_DAYS}일`);
   });
 
   it("예산 범위 선택지가 같다", () => {
