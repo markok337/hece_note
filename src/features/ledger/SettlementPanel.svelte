@@ -68,7 +68,7 @@
     {:else}
       <p class="cell hint">설정 탭에서 예산을 정하면 남은 금액을 볼 수 있다.</p>
     {/if}
-    <!-- 예금은 합계에 들어가지 않으므로 지출 줄들과 떨어뜨려 예산 마지막 줄에 따로 둔다. 누르면 예금 이력이 열린다. -->
+    <!-- 예금은 합계에 들어가지 않으므로 지출 줄들과 떨어뜨려 예산 마지막 줄에 따로 둔다. 누르면 예금 이력이 열린다. 그 달에 없으면 금액 칸만 빈다. -->
     {#if stats.savings !== null}
       <button type="button" class="slice savings" aria-label="{SAVINGS_CATEGORY} 이력 보기" onclick={() => onpick("category", SAVINGS_CATEGORY)}>
         <span class="label">
@@ -76,6 +76,8 @@
           <span class="value">{formatWon(stats.savings)} <i aria-hidden="true">›</i></span>
         </span>
       </button>
+    {:else}
+      <div class="slice savings empty"><span class="label"><span>{SAVINGS_CATEGORY}</span></span></div>
     {/if}
 
     {#if stats.count > 0}
