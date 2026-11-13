@@ -5,6 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { BudgetRow, BudgetRules, BudgetScope, Card, CategoryRow, LedgerEntry } from "./domain";
 import {
   DEFAULT_CATEGORIES,
+  SAVINGS_CATEGORY,
   budgetFor,
   emptyBudgetRules,
   entriesInMonth,
@@ -274,8 +275,9 @@ class LedgerStore {
     );
   }
 
-  /** 분류를 선택지에서 뺀다. 그 분류로 적은 이력은 이름 그대로 남는다. 마지막 하나는 지울 수 없다. */
+  /** 분류를 선택지에서 뺀다. 그 분류로 적은 이력은 이름 그대로 남는다. 마지막 하나와 예금은 지울 수 없다. */
   removeCategory(name: string): Promise<boolean> {
+    if (name === SAVINGS_CATEGORY) return Promise.resolve(false);
     const row = Object.values(this.categoryRows).find((candidate) => candidate.name === name);
     if (!row || Object.keys(this.categoryRows).length <= 1) return Promise.resolve(false);
     return this.#write(

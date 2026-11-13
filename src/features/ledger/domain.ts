@@ -9,6 +9,17 @@ export const CASH = "현금";
 export const DEFAULT_CATEGORIES: readonly string[] = ["식비", "교통", "쇼핑", "생활", "의료", "문화", "기타"];
 export type Category = string;
 
+/**
+ * 지출이 아닌 저축이라 합계에 넣지 않는 분류. 설정에서 지울 수 없다.
+ * 합계(월 합계, 예산 차액, 하루 합계, 통계의 "전체")에서 빠지고, 항목은 목록에 그대로 보인다.
+ */
+export const SAVINGS_CATEGORY = "예금";
+
+/** 합계에 들어가는 항목인가. */
+export function isCounted(entry: Pick<LedgerEntry, "category">): boolean {
+  return entry.category !== SAVINGS_CATEGORY;
+}
+
 export const CATEGORY_NAME_MAX = 10;
 export const MEMO_MAX = 100;
 export const CARD_NAME_MAX = 20;
@@ -225,12 +236,13 @@ export interface DayGroup {
 export function groupByDate(entries: readonly LedgerEntry[]): DayGroup[] {
   const groups: DayGroup[] = [];
   for (const entry of sortNewestFirst(entries)) {
+    const counted = isCounted(entry) ? entry.amount : 0;
     const last = groups[groups.length - 1];
     if (last && last.date === entry.spent_on) {
       last.entries.push(entry);
-      last.total += entry.amount;
+      last.total += counted;
     } else {
-      groups.push({ date: entry.spent_on, entries: [entry], total: entry.amount });
+      groups.push({ date: entry.spent_on, entries: [entry], total: counted });
     }
   }
   return groups;
@@ -274,10 +286,11 @@ function sliceBy(entries: readonly LedgerEntry[], pick: (entry: LedgerEntry) => 
     .sort((a, b) => b.total - a.total || compareText(a.label, b.label));
 }
 
-/** 한 달의 합계, 지난달 합계, 분류별·구분별 합계. */
+/** 한 달의 합계, 지난달 합계, 분류별·구분별 합계. 합계에 넣지 않는 분류(예금)는 모두에서 뺀다. */
 export function monthStats(all: readonly LedgerEntry[], ref: MonthRef): MonthStats {
-  const entries = entriesInMonth(all, ref);
-  const previous = entriesInMonth(all, shiftMonth(ref, -1));
+  const counted = all.filter(isCounted);
+  const entries = entriesInMonth(counted, ref);
+  const previous = entriesInMonth(counted, shiftMonth(ref, -1));
   return {
     total: entries.reduce((sum, entry) => sum + entry.amount, 0),
     count: entries.length,
@@ -306,7 +319,8 @@ export function categoryTrend(
   category: string | null,
   months = TREND_MONTHS,
 ): TrendPoint[] {
-  const scoped = category === null ? entries : entries.filter((entry) => entry.category === category);
+  // 전체는 합계와 같은 기준이라 예금을 뺀다. 예금 칩을 직접 고르면 예금의 추이를 본다.
+  const scoped = category === null ? entries.filter(isCounted) : entries.filter((entry) => entry.category === category);
   // 첫 달의 전월 대비를 구하려고 한 달 더 센다.
   const refs = Array.from({ length: months + 1 }, (_, i) => shiftMonth(end, i - months));
   const totals = refs.map((ref) => entriesInMonth(scoped, ref).reduce((sum, entry) => sum + entry.amount, 0));

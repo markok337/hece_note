@@ -23,6 +23,7 @@ import {
   type Card,
   type LedgerEntry,
   moveItem,
+  SAVINGS_CATEGORY,
 } from "../../src/features/ledger/domain";
 
 function entry(id: string, spent_on: string, amount: number, extra: Partial<LedgerEntry> = {}): LedgerEntry {
@@ -341,5 +342,38 @@ describe("moveItem", () => {
     expect(moveItem(list, 0, 5)).toEqual(["a", "b"]);
     expect(moveItem(list, -1, 0)).toEqual(["a", "b"]);
     expect(list).toEqual(["a", "b"]);
+  });
+});
+
+describe("예금(합계 제외 분류)", () => {
+  const spend = { id: "s", spent_on: "2026-11-05", method: "신한", category: "식비", amount: 10_000, memo: "", sms_key: null, created_at: "2026-11-05T00:00:00Z" };
+  const save = { ...spend, id: "v", category: SAVINGS_CATEGORY, amount: 500_000 };
+  const lastMonth = { ...spend, id: "p", spent_on: "2026-10-05", amount: 7_000 };
+  const lastMonthSave = { ...save, id: "q", spent_on: "2026-10-06" };
+  const NOV = { year: 2026, month: 11 };
+
+  it("월 합계, 건수, 지난달 합계, 분류별·구분별에서 뺀다", () => {
+    const stats = monthStats([spend, save, lastMonth, lastMonthSave], NOV);
+    expect(stats.total).toBe(10_000);
+    expect(stats.count).toBe(1);
+    expect(stats.previousTotal).toBe(7_000);
+    expect(stats.byCategory.map((slice) => slice.label)).toEqual(["식비"]);
+    expect(stats.byMethod).toEqual([{ label: "신한", total: 10_000, share: 1 }]);
+  });
+
+  it("예금만 있는 지난달은 지난달 기록이 없는 것과 같다", () => {
+    expect(monthStats([spend, lastMonthSave], NOV).previousTotal).toBeNull();
+  });
+
+  it("하루 합계에서 뺀다. 항목은 그대로 남는다", () => {
+    const [day] = groupByDate([spend, save]);
+    expect(day.total).toBe(10_000);
+    expect(day.entries).toHaveLength(2);
+  });
+
+  it("통계의 전체에서는 빠지고 예금을 직접 고르면 보인다", () => {
+    const last = (category: string | null) => categoryTrend([spend, save], NOV, category).at(-1)!.total;
+    expect(last(null)).toBe(10_000);
+    expect(last(SAVINGS_CATEGORY)).toBe(500_000);
   });
 });

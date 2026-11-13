@@ -3,7 +3,7 @@
   // 뺀 분류로 이미 적은 이력은 지우지 않고 이름 그대로 남는다.
   import { notice } from "../../core/notice.svelte";
   import ConfirmButton from "../../ui/ConfirmButton.svelte";
-  import { CATEGORY_NAME_MAX, moveItem, validateCategoryName } from "./domain";
+  import { CATEGORY_NAME_MAX, SAVINGS_CATEGORY, moveItem, validateCategoryName } from "./domain";
   import { ledger } from "./store.svelte";
 
   let name = $state("");
@@ -81,7 +81,7 @@
           onkeydown={(event) => nudge(event, category)}
         >⋮⋮</button>
         <span class="name">{category}</span>
-        <ConfirmButton name="{category} 분류" width="30px" small disabled={isLast} onconfirm={() => ledger.removeCategory(category)} />
+        <ConfirmButton name="{category} 분류" label={category === SAVINGS_CATEGORY ? "🔒" : "✕"} width="30px" small disabled={isLast || category === SAVINGS_CATEGORY} onconfirm={() => ledger.removeCategory(category)} />
       </li>
     {/each}
   </ul>

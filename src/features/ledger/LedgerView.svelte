@@ -13,7 +13,7 @@
   import ImportPreview from "./ImportPreview.svelte";
   import SettingsPanel from "./SettingsPanel.svelte";
   import SettlementPanel from "./SettlementPanel.svelte";
-  import { entriesBy, groupByDate, monthStats, type LedgerEntry, type SliceKind } from "./domain";
+  import { entriesBy, groupByDate, isCounted, monthStats, type LedgerEntry, type SliceKind } from "./domain";
   import { fetchMockSms, type MockSmsResult } from "./mock-sms";
   import { ledger } from "./store.svelte";
 
@@ -43,7 +43,7 @@
   const groups = $derived(groupByDate(entries));
   const stats = $derived(monthStats(allEntries, month));
   const budget = $derived(ledger.budgetFor(month));
-  const drillEntries = $derived(drill ? entriesBy(entries, drill.kind, drill.label) : []);
+  const drillEntries = $derived(drill ? entriesBy(entries.filter(isCounted), drill.kind, drill.label) : []);
   // 설정에서 지운 분류라도 이력이 있으면 통계에서 고를 수 있다.
   const trendChoices = $derived(ledger.categoryChoices(...allEntries.map((entry) => entry.category)));
 

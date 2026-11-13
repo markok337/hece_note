@@ -270,6 +270,13 @@ describe("분류", () => {
     expect(ledger.categoryChoices()).not.toContain("의료");
   });
 
+  it("예금은 지울 수 없다", async () => {
+    await ledger.addCategory("예금");
+    expect(await ledger.removeCategory("예금")).toBe(false);
+    expect(ledger.categories).toContain("예금");
+    expect(repo.deleteCategory).not.toHaveBeenCalled();
+  });
+
   it("마지막 하나는 지울 수 없다", async () => {
     for (const name of [...ledger.categories].slice(1)) await ledger.removeCategory(name);
     expect(ledger.categories).toHaveLength(1);
