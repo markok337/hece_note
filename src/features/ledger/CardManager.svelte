@@ -26,7 +26,6 @@
 
 <div class="sheet">
   <h2 class="band">카드 · 발신번호</h2>
-  <p class="help">여기 등록한 번호로 온 문자만 읽는다. 다른 사람과 주고받은 문자는 읽지 않는다. 카드 이름은 지출의 구분이 된다.</p>
 
   <form class="add" onsubmit={add}>
     <input bind:value={name} maxlength={CARD_NAME_MAX} placeholder="카드 이름" aria-label="카드 이름" />
@@ -51,8 +50,6 @@
 </div>
 
 <style>
-  .help { margin: 0; padding: 8px 10px 0; font-size: 0.8rem; color: var(--muted); }
-
   .add { gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   .add input { flex: 1 1 0; min-width: 0; padding: 9px 8px; font-size: 0.9rem; }
   .add button { flex-shrink: 0; padding: 0 16px; font-size: 0.9rem; }
