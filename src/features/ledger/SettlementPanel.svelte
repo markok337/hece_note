@@ -26,7 +26,7 @@
 
 </script>
 
-{#snippet bars(title: string, kind: SliceKind, slices: Slice[], savings: number | null = null)}
+{#snippet bars(title: string, kind: SliceKind, slices: Slice[])}
   <h3 class="band">{title}</h3>
   <ul>
     {#each slices as slice (slice.label)}
@@ -40,16 +40,6 @@
         </button>
       </li>
     {/each}
-    {#if savings !== null}
-      <li class="savings">
-        <button type="button" class="slice" aria-label="{SAVINGS_CATEGORY} 이력 보기" onclick={() => onpick(kind, SAVINGS_CATEGORY)}>
-          <span class="label">
-            <span>{SAVINGS_CATEGORY}</span>
-            <span class="value">{formatWon(savings)} <i aria-hidden="true">›</i></span>
-          </span>
-        </button>
-      </li>
-    {/if}
   </ul>
 {/snippet}
 
@@ -78,10 +68,19 @@
     {:else}
       <p class="cell hint">설정 탭에서 예산을 정하면 남은 금액을 볼 수 있다.</p>
     {/if}
+    <!-- 예금은 합계에 들어가지 않으므로 지출 줄들과 떨어뜨려 예산 마지막 줄에 따로 둔다. 누르면 예금 이력이 열린다. -->
+    {#if stats.savings !== null}
+      <button type="button" class="slice savings" aria-label="{SAVINGS_CATEGORY} 이력 보기" onclick={() => onpick("category", SAVINGS_CATEGORY)}>
+        <span class="label">
+          <span>{SAVINGS_CATEGORY}</span>
+          <span class="value">{formatWon(stats.savings)} <i aria-hidden="true">›</i></span>
+        </span>
+      </button>
+    {/if}
 
-    {#if stats.count > 0 || stats.savings !== null}
-      {@render bars("분류별", "category", stats.byCategory, stats.savings)}
-      {#if stats.count > 0}{@render bars("구분별", "method", stats.byMethod)}{/if}
+    {#if stats.count > 0}
+      {@render bars("분류별", "category", stats.byCategory)}
+      {@render bars("구분별", "method", stats.byMethod)}
     {:else}
       <p class="cell hint">이 달의 지출이 없다.</p>
     {/if}
@@ -112,8 +111,6 @@
 
   ul { list-style: none; margin: 0; padding: 0; }
   li + li { border-top: 1px solid var(--line); }
-  /* 예금은 합계에 들어가지 않으므로 지출 줄들과 선으로 떨어뜨린다. */
-  li.savings { border-top: 1px solid var(--line-strong); }
   /* 줄 하나 전체가 버튼이다. 글자는 본문 색이고, 막대 하나만 강조색이다. */
   .slice {
     display: flex;
@@ -129,6 +126,7 @@
     border-radius: 0;
   }
   .slice:hover { background: var(--row-hover); }
+  .slice.savings { padding: 6px 10px; border-top: 1px solid var(--line-strong); }
   .label { display: flex; justify-content: space-between; gap: 8px; }
   .value { font-variant-numeric: tabular-nums; }
   .value small { margin-left: 4px; font-size: 0.75rem; color: var(--muted); }
