@@ -2,6 +2,7 @@
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { BudgetRow, Card, CategoryRow, LedgerEntry, SmsRow, SmsStatus } from "./domain";
+import { fetchAllPages } from "../../core/paging";
 import { supabase } from "../../supabase";
 
 const ENTRY_COLUMNS = "id, spent_on, method, category, amount, memo, sms_key, created_at";
@@ -45,10 +46,13 @@ function check(error: { message: string } | null): void {
   if (error) throw new Error(error.message);
 }
 
-export async function fetchEntries(): Promise<LedgerEntry[]> {
-  const { data, error } = await client().from("ledger_entries").select(ENTRY_COLUMNS);
-  check(error);
-  return data as LedgerEntry[];
+// 서버가 한 번에 1000행까지만 주므로 이어서 받는다. 쪽이 겹치거나 빠지지 않게 id 순으로 자른다.
+export function fetchEntries(): Promise<LedgerEntry[]> {
+  return fetchAllPages(async (from, to) => {
+    const { data, error } = await client().from("ledger_entries").select(ENTRY_COLUMNS).order("id").range(from, to);
+    check(error);
+    return data as LedgerEntry[];
+  });
 }
 
 export async function fetchCards(): Promise<Card[]> {
@@ -69,10 +73,12 @@ export async function fetchBudgetRules(): Promise<BudgetRow[]> {
   return data as BudgetRow[];
 }
 
-export async function fetchSms(): Promise<SmsRow[]> {
-  const { data, error } = await client().from("ledger_sms").select(SMS_COLUMNS);
-  check(error);
-  return data as SmsRow[];
+export function fetchSms(): Promise<SmsRow[]> {
+  return fetchAllPages(async (from, to) => {
+    const { data, error } = await client().from("ledger_sms").select(SMS_COLUMNS).order("id").range(from, to);
+    check(error);
+    return data as SmsRow[];
+  });
 }
 
 export async function upsertEntry(entry: LedgerEntry): Promise<void> {

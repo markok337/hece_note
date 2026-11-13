@@ -2,6 +2,7 @@
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { BlogDay, CategoryRule } from "./domain";
+import { fetchAllPages } from "../../core/paging";
 import { supabase } from "../../supabase";
 
 const DAY_COLUMNS = "day, category, assignee, topic, photo, writing, editing, related, reserved";
@@ -18,10 +19,13 @@ function client() {
   return supabase;
 }
 
-export async function fetchDays(): Promise<BlogDay[]> {
-  const { data, error } = await client().from("blog_days").select(DAY_COLUMNS);
-  if (error) throw new Error(error.message);
-  return data as BlogDay[];
+// 서버가 한 번에 1000행까지만 주므로 이어서 받는다. 날짜(기본키) 순으로 잘라 쪽이 겹치지 않게 한다.
+export function fetchDays(): Promise<BlogDay[]> {
+  return fetchAllPages(async (from, to) => {
+    const { data, error } = await client().from("blog_days").select(DAY_COLUMNS).order("day").range(from, to);
+    if (error) throw new Error(error.message);
+    return data as BlogDay[];
+  });
 }
 
 export async function fetchRules(): Promise<CategoryRule[]> {
