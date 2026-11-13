@@ -31,8 +31,8 @@
     {#each categories as category (category)}
       <li>
         <span class="name">{category}</span>
-        <span class="count">{ledger.categoryUsage(category)}건</span>
-        <ConfirmButton name="{category} 분류" disabled={isLast} onconfirm={() => ledger.removeCategory(category)} />
+        <span class="count" title="{ledger.categoryUsage(category)}건에서 쓰는 중">{ledger.categoryUsage(category)}</span>
+        <ConfirmButton name="{category} 분류" width="30px" small disabled={isLast} onconfirm={() => ledger.removeCategory(category)} />
       </li>
     {/each}
   </ul>
@@ -43,9 +43,17 @@
   .add input { flex: 1 1 0; min-width: 0; padding: 9px 8px; font-size: 0.9rem; }
   .add button { flex-shrink: 0; padding: 0 16px; font-size: 0.9rem; }
 
-  ul { list-style: none; margin: 0; padding: 0; }
-  li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
-  li:last-child { border-bottom: 0; }
-  .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; font-weight: 700; }
-  .count { font-size: 0.75rem; color: var(--muted); }
+  /* 분류는 칩으로 가로로 흘러 줄 수가 적다. 칩 하나가 이름, 쓰인 건수, 지우는 버튼이다. */
+  ul { list-style: none; margin: 0; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  li {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 3px 3px 10px;
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: 15px;
+  }
+  .name { font-size: 0.9rem; font-weight: 700; }
+  .count { min-width: 1.2em; font-size: 0.72rem; text-align: center; color: var(--muted); }
 </style>
