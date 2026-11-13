@@ -2,13 +2,15 @@
 
 가계부 탭은 카드 결제 문자를 불러와 지출로 기록한다. 화면과 규칙 중 확정한 것은 [decisions.md의 "확정한 것: 가계부"](decisions.md)에 있다. 이 문서는 아직 만들지 않은 단계만 적는다.
 
-**1단계(화면 시안)는 끝났다.** 메모리 저장, 모의 불러오기, 표 화면, 가계부 안의 탭 4개(목록·결산·통계·설정), 목록 위 예산 요약, 결산의 이력 창, 12개월 분류 추이, 설정(예산 규칙, 분류 더하기·빼기)까지다. 아래 2~4단계는 순서대로 진행하고, 단계가 끝날 때마다 `decisions.md`의 해당 문장("1단계의 불러오기는 모의다" 등)을 현재 상태로 고친다.
+**1단계(화면 시안)와 2단계(DB 연동)는 끝났다.** 1단계는 모의 불러오기, 표 화면, 가계부 안의 탭 4개(목록·결산·통계·설정), 목록 위 예산 요약, 결산의 이력 창, 12개월 분류 추이, 설정(예산 규칙, 분류 더하기·빼기)까지다. 아래 3~4단계는 순서대로 진행하고, 단계가 끝날 때마다 `decisions.md`의 해당 문장("1단계의 불러오기는 모의다" 등)을 현재 상태로 고친다.
 
-## 2단계: DB 연동
+## 2단계: DB 연동 (끝남)
+
+실제 구현은 `0004_ledger.sql`, `repo.ts`, `store.svelte.ts`다. 아래는 설계 기록이다. 계획과 달라진 점: 확인한 문자(`dismissed`)는 테이블 `ledger_dismissed`로 따로 두었고, 예산·분류·카드는 `id` 기준 upsert라서 같은 범위·달을 다시 정하면 기존 행의 `id`를 재사용한다.
 
 화면이 부르는 `ledger` 스토어의 메서드 모양은 그대로 두고, 저장만 Supabase로 바꾼다. 지출 항목, 카드, 분류 목록(`addCategory`·`removeCategory`), 예산 규칙(`setBudget`·`removeBudgetRule`)이 모두 대상이다. 가계부 안의 설정 탭은 같은 스토어를 쓰므로 화면 코드는 바뀌지 않는다.
 
-- `supabase/migrations/0004_ledger.sql`: 테이블 둘.
+- `supabase/migrations/0004_ledger.sql`: 테이블 다섯.
   - `ledger_entries`: id, spent_on(date), method(text), category(text, 1~10자. 분류를 설정에서 빼도 이력은 이름 그대로 남아야 하므로 목록을 가리키는 외래키나 check를 걸지 않는다), amount(integer, 0 제외, 절댓값 10억 이하), memo(100자 이하), sms_key(text, 없으면 null), created_at, user_id.
   - `ledger_categories`: id, name(1~10자), position(정렬 순서), created_at, user_id. `(user_id, name)` 유일. 행이 하나도 없으면 앱이 기본 분류 7가지를 채운다. 마지막 하나는 지우지 못하게 앱이 막는다.
   - `ledger_budget_rules`: id, scope(`base`/`from`/`only` check), month(date, 그 달 1일. `base`면 null), amount(integer, 1 이상), user_id. `base`는 사용자당 하나, `from`·`only`는 `(user_id, scope, month)` 유일. 한 달에 적용되는 값은 앱이 `budgetFor`로 "그 달만 → 그 달 이전 가장 최근 이후 규칙 → 기본값" 순서로 계산하므로 달마다 행을 채우지 않는다.
@@ -19,7 +21,7 @@
 - `repo.ts`: 냉장고 `repo.ts`와 같은 모양(fetch·upsert·delete·subscribe).
 - `store.svelte.ts`: `WriteQueue`로 낙관적 쓰기와 실시간 반영, 실패하면 서버 값으로 되돌림. `live`가 실제 연결 상태를 따라가므로 하단 표시가 "실시간"이 된다. 문자 확인 상태(`dismissed`)도 DB에 저장해 기기끼리 맞춘다(읽지 못한 문자를 다른 기기에서 다시 보지 않도록).
 - 테스트: 냉장고 스토어 테스트와 같은 방식(repo를 mock), `schema-parity.test.ts`에 분류 목록과 check 일치 검증 추가.
-- 사용자가 할 일: Supabase SQL Editor에서 0004를 실행한다(`docs/setup.md`의 방식).
+- 사용자가 할 일: Supabase SQL Editor에서 0004를 실행한다(`docs/setup.md`의 방식). 실행하기 전에는 가계부 탭이 "불러오기 실패"를 띄운다.
 
 ## 3단계: 문자 규칙 (견본으로 읽는 법 정하기)
 

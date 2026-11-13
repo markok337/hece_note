@@ -1,13 +1,146 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_CATEGORIES, type CategoryRow } from "../../src/features/ledger/domain";
+
+const repo = vi.hoisted(() => ({
+  fetchEntries: vi.fn(),
+  fetchCards: vi.fn(),
+  fetchCategories: vi.fn(),
+  fetchBudgetRules: vi.fn(),
+  fetchDismissed: vi.fn(),
+  upsertEntry: vi.fn(),
+  upsertEntries: vi.fn(),
+  deleteEntry: vi.fn(),
+  upsertCard: vi.fn(),
+  deleteCard: vi.fn(),
+  upsertCategory: vi.fn(),
+  seedCategories: vi.fn(),
+  deleteCategory: vi.fn(),
+  upsertBudgetRule: vi.fn(),
+  deleteBudgetRule: vi.fn(),
+  insertDismissed: vi.fn(),
+  subscribeLedger: vi.fn(),
+  unsubscribe: vi.fn(),
+}));
+vi.mock("../../src/features/ledger/repo", () => repo);
+
 import { fetchMockSms } from "../../src/features/ledger/mock-sms";
 import { ledger } from "../../src/features/ledger/store.svelte";
 
 const NOV = { year: 2026, month: 11 };
 const FIELDS = { spent_on: "2026-11-13", method: "현금", category: "식비", amount: 5000, memo: "점심" } as const;
 
+function defaultRows(): CategoryRow[] {
+  return DEFAULT_CATEGORIES.map((name, position) => ({ id: `c${position}`, name, position, created_at: "2026-11-01T00:00:00Z" }));
+}
+
 beforeEach(async () => {
+  vi.resetAllMocks();
+  repo.fetchEntries.mockResolvedValue([]);
+  repo.fetchCards.mockResolvedValue([]);
+  repo.fetchCategories.mockResolvedValue(defaultRows());
+  repo.fetchBudgetRules.mockResolvedValue([]);
+  repo.fetchDismissed.mockResolvedValue([]);
+  for (const name of [
+    "upsertEntry", "upsertEntries", "deleteEntry", "upsertCard", "deleteCard", "upsertCategory", "seedCategories",
+    "deleteCategory", "upsertBudgetRule", "deleteBudgetRule", "insertDismissed", "unsubscribe",
+  ] as const) {
+    repo[name].mockResolvedValue(undefined);
+  }
   await ledger.stop();
   await ledger.start();
+});
+
+describe("저장", () => {
+  it("불러오기 전에는 쓰지 않는다", async () => {
+    await ledger.stop();
+    expect(await ledger.addEntry(FIELDS)).toBe(false);
+    expect(repo.upsertEntry).not.toHaveBeenCalled();
+  });
+
+  it("항목을 추가·고치기·지우기하면 서버에도 쓴다", async () => {
+    await ledger.addEntry(FIELDS);
+    const [added] = ledger.entriesIn(NOV);
+    expect(repo.upsertEntry).toHaveBeenCalledWith(expect.objectContaining({ id: added.id, amount: 5000 }));
+    await ledger.updateEntry(added.id, { amount: 7000 });
+    expect(repo.upsertEntry).toHaveBeenLastCalledWith(expect.objectContaining({ id: added.id, amount: 7000 }));
+    await ledger.removeEntry(added.id);
+    expect(repo.deleteEntry).toHaveBeenCalledWith(added.id);
+  });
+
+  it("문자에서 가져온 여러 건은 한 번에 쓴다", async () => {
+    await ledger.addEntries([{ ...FIELDS, sms_key: "a" }, { ...FIELDS, sms_key: "b" }]);
+    expect(repo.upsertEntries).toHaveBeenCalledTimes(1);
+    expect(repo.upsertEntries.mock.calls[0][0]).toHaveLength(2);
+    expect(ledger.entriesIn(NOV)).toHaveLength(2);
+  });
+
+  it("저장에 실패하면 서버 값으로 되돌린다", async () => {
+    repo.upsertEntry.mockRejectedValue(new Error("거부"));
+    expect(await ledger.addEntry(FIELDS)).toBe(false);
+    await vi.waitFor(() => expect(ledger.entriesIn(NOV)).toEqual([]));
+  });
+
+  it("카드, 분류, 예산, 확인한 문자도 서버에 쓴다", async () => {
+    await ledger.addCard({ name: "신한", sender: "15888700", samples: [] });
+    await ledger.removeCard(ledger.cardList()[0].id);
+    await ledger.addCategory("취미");
+    await ledger.removeCategory("식비");
+    await ledger.setBudget("base", 900_000, NOV);
+    await ledger.setBudget("from", 1_000_000, NOV);
+    await ledger.removeBudgetRule("from", "2026-11");
+    await ledger.dismiss(["x", "y"]);
+    expect(repo.upsertCard).toHaveBeenCalledTimes(1);
+    expect(repo.deleteCard).toHaveBeenCalledTimes(1);
+    expect(repo.upsertCategory).toHaveBeenCalledWith(expect.objectContaining({ name: "취미", position: DEFAULT_CATEGORIES.length }));
+    expect(repo.deleteCategory).toHaveBeenCalledWith("c0");
+    expect(repo.upsertBudgetRule).toHaveBeenCalledWith(expect.objectContaining({ scope: "from", month: "2026-11-01" }));
+    expect(repo.deleteBudgetRule).toHaveBeenCalledTimes(1);
+    expect(repo.insertDismissed).toHaveBeenCalledWith(["x", "y"]);
+  });
+
+  it("같은 달 예산을 다시 정하면 같은 행을 고쳐 쓴다", async () => {
+    await ledger.setBudget("only", 1_000_000, NOV);
+    await ledger.setBudget("only", 1_100_000, NOV);
+    const [first, second] = repo.upsertBudgetRule.mock.calls.map((call) => call[0]);
+    expect(second.id).toBe(first.id);
+  });
+
+  it("이미 확인한 문자는 다시 쓰지 않는다", async () => {
+    await ledger.dismiss(["x"]);
+    await ledger.dismiss(["x"]);
+    expect(repo.insertDismissed).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("불러오기", () => {
+  it("서버의 항목, 카드, 예산, 확인한 문자를 가져온다", async () => {
+    repo.fetchEntries.mockResolvedValue([{ id: "e1", ...FIELDS, sms_key: null, created_at: "2026-11-13T00:00:00Z" }]);
+    repo.fetchCards.mockResolvedValue([{ id: "k1", name: "신한", sender: "15888700", samples: [], created_at: "2026-11-01T00:00:00Z" }]);
+    repo.fetchBudgetRules.mockResolvedValue([{ id: "b1", scope: "from", month: "2026-10-01", amount: 800_000 }]);
+    repo.fetchDismissed.mockResolvedValue(["d1"]);
+    await ledger.load();
+    expect(ledger.entriesIn(NOV)).toHaveLength(1);
+    expect(ledger.cardList()).toHaveLength(1);
+    expect(ledger.budgetFor(NOV)).toBe(800_000);
+    expect(ledger.knownSmsKeys().has("d1")).toBe(true);
+  });
+
+  it("분류가 하나도 없으면 기본 분류를 채우고 다시 읽는다", async () => {
+    repo.fetchCategories.mockResolvedValueOnce([]).mockResolvedValueOnce(defaultRows());
+    await ledger.load();
+    expect(repo.seedCategories).toHaveBeenCalledTimes(1);
+    expect(repo.seedCategories.mock.calls[0][0].map((row: CategoryRow) => row.name)).toEqual([...DEFAULT_CATEGORIES]);
+    expect(ledger.categories).toEqual([...DEFAULT_CATEGORIES]);
+  });
+
+  it("분류는 position 순서로 나온다", async () => {
+    repo.fetchCategories.mockResolvedValue([
+      { id: "b", name: "둘째", position: 1, created_at: "2026-11-01T00:00:00Z" },
+      { id: "a", name: "첫째", position: 0, created_at: "2026-11-01T00:00:00Z" },
+    ]);
+    await ledger.load();
+    expect(ledger.categories).toEqual(["첫째", "둘째"]);
+  });
 });
 
 describe("항목", () => {
@@ -173,7 +306,7 @@ describe("문자 불러오기(모의)", () => {
         sms_key: c.key,
       })),
     );
-    ledger.dismiss(first.unparsed.map((u) => u.key));
+    await ledger.dismiss(first.unparsed.map((u) => u.key));
     expect(await load()).toEqual({ candidates: [], unparsed: [] });
   });
 

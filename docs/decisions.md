@@ -162,7 +162,7 @@ DB의 모든 테이블에는 RLS 규칙을 걸어 이 계정만 읽고 쓰게 �
 
 ## 확정한 것: 가계부
 
-단계별 구현 계획은 [docs/ledger-plan.md](ledger-plan.md). 아래는 화면과 규칙 중 확정한 것이다. 지금은 1단계(화면 시안)까지 만들었고 저장은 메모리뿐이라 새로고침하면 사라진다.
+단계별 구현 계획은 [docs/ledger-plan.md](ledger-plan.md). 아래는 화면과 규칙 중 확정한 것이다. 지금은 2단계(DB 연동)까지 만들었다. 항목·카드·분류·예산 규칙·확인한 문자가 모두 Supabase에 저장되고 기기끼리 실시간으로 맞는다. 문자 불러오기만 아직 모의다.
 
 ### 화면
 - 위쪽 줄: 달 넘기기(‹ 2026년 11월 ›, 달 제목을 누르면 이번 달로), "불러오기", 카드·발신번호 관리, 로그아웃. 폭 360px에서도 한 줄에 들어간다.
@@ -213,9 +213,10 @@ DB의 모든 테이블에는 RLS 규칙을 걸어 이 계정만 읽고 쓰게 �
 - 불러오기는 곧바로 항목을 만들지 않고 확인 창을 먼저 띄운다. 결제마다 체크와 분류를 정하고, 체크한 것만 "N건 추가"로 들어간다. 체크를 푼 문자는 다음 불러오기에 다시 나온다.
 - 읽지 못한 문자는 버리지 않고 "읽지 못한 문자"로 확인 창에 따로 보여 준다. 한 번 본 뒤에는 다시 보이지 않는다.
 - 이미 가져온 문자는 문자 식별값(`sms_key`)으로 건너뛴다. 새 문자가 없으면 "새 결제 문자가 없다."를 알린다. 카드를 하나도 등록하지 않았으면 카드 등록 창을 먼저 연다.
-- 1단계의 불러오기는 모의다. 등록한 카드마다 가짜 결제 문자(승인 4건, 취소 1건, 읽지 못하는 안내 1건)를 만들어 흐름만 보여 준다.
+- 불러오기는 아직 모의다(4단계에서 실제 문자 읽기로 바꾼다). 등록한 카드마다 가짜 결제 문자(승인 4건, 취소 1건, 읽지 못하는 안내 1건)를 만들어 흐름만 보여 준다.
 
 ### 파일
-- `src/features/ledger/`: `domain.ts`(규칙, 예산 규칙 계산·통계 추이 포함), `store.svelte.ts`(상태, 지금은 메모리), `mock-sms.ts`(모의 불러오기), 화면 컴포넌트들(`LedgerView` 탭 4개를 묶음, `BudgetStrip` 목록 위 요약, `EntryList` 표, `SettlementPanel` 결산, `CategoryTrend` 통계, `SettingsPanel`·`BudgetSettings`·`CategorySettings` 설정, `DrillDown` 이력 창 등).
+- `src/features/ledger/`: `domain.ts`(규칙, 예산 규칙 계산·통계 추이 포함), `store.svelte.ts`(상태, 낙관적 쓰기), `repo.ts`(Supabase 접근), `mock-sms.ts`(모의 불러오기), 화면 컴포넌트들(`LedgerView` 탭 4개를 묶음, `BudgetStrip` 목록 위 요약, `EntryList` 표, `SettlementPanel` 결산, `CategoryTrend` 통계, `SettingsPanel`·`BudgetSettings`·`CategorySettings` 설정, `DrillDown` 이력 창 등).
 - 표 한 장의 공용 스타일(`.sheet`, `.band`)은 `src/style.css`에 있다.
-- 테스트: `tests/unit/ledger.test.ts`, `tests/unit/ledger-store.test.ts`.
+- 테스트: `tests/unit/ledger.test.ts`, `tests/unit/ledger-store.test.ts`, `schema-parity.test.ts`(TS와 SQL 제약 일치).
+- DB: `supabase/migrations/0004_ledger.sql`(`ledger_entries`, `ledger_categories`, `ledger_budget_rules`, `ledger_cards`, `ledger_dismissed`). 저장 방식은 냉장고와 같다(`WriteQueue`, 낙관적 쓰기, 실패하면 서버 값으로 되돌림, Realtime). 분류가 하나도 없으면 앱이 기본 분류 7가지를 채운다. 항목의 분류는 분류 테이블을 가리키지 않아서 분류를 빼도 이력이 남는다.

@@ -39,6 +39,22 @@ export interface Card {
   created_at: string;
 }
 
+/** 분류 목록의 한 줄. position 이 선택지의 순서다. */
+export interface CategoryRow {
+  id: string;
+  name: string;
+  position: number;
+  created_at: string;
+}
+
+/** 예산 규칙의 한 줄. base 는 month 가 없고, from·only 는 그 달 1일("2026-11-01")이다. */
+export interface BudgetRow {
+  id: string;
+  scope: BudgetScope;
+  month: string | null;
+  amount: number;
+}
+
 /** 문자에서 읽어 낸 결제 한 건. 사용자가 확인하기 전까지는 항목이 아니다. */
 export interface SmsCandidate {
   key: string;
