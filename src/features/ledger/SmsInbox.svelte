@@ -1,7 +1,7 @@
 <script lang="ts">
   // 문자함의 "처리 필요" 문자 목록. 문자를 누르면 양식이 열리고, 추가하지 않을 문자는 "무시"로 치운다.
   import { formatWon, type SmsRow } from "./domain";
-  import { guessFromMock } from "./mock-sms";
+  import { guessFromSms } from "./sms-guess";
   import { ledger } from "./store.svelte";
   import SmsForm from "./SmsForm.svelte";
 
@@ -19,7 +19,7 @@
     ledger.pendingSms().map((sms) => ({
       sms,
       method: cards.find((card) => card.sender === sms.sender)?.name ?? sms.sender,
-      guess: guessFromMock(sms.body, sms.received_at),
+      guess: guessFromSms(sms.body, sms.received_at),
     })),
   );
 

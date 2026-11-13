@@ -13,7 +13,7 @@
   import SettingsPanel from "./SettingsPanel.svelte";
   import SettlementPanel from "./SettlementPanel.svelte";
   import { SAVINGS_CATEGORY, entriesBy, groupByDate, isCounted, monthStats, type LedgerEntry, type SliceKind } from "./domain";
-  import { fetchMockSms } from "./mock-sms";
+  import { canReadSms, readSms } from "./sms-reader";
   import { ledger } from "./store.svelte";
 
   // 가계부 안의 탭. 목록은 지출 표, 결산은 한 달 정리, 통계는 분류별 월 추이, 설정은 예산·분류·카드다.
@@ -55,8 +55,12 @@
     month = { year: parseYmd(clock.today).year, month: parseYmd(clock.today).month };
   }
 
-  /** 등록한 번호의 최근 문자를 문자함에 쌓고, 처리가 필요한 문자를 보여 준다. 지금은 모의 문자를 쓴다. */
+  /** 폰에서 등록한 번호의 최근 30일 문자를 읽어 문자함에 쌓고, 처리가 필요한 문자를 보여 준다. 안드로이드 앱에서만 읽는다. */
   async function startImport(): Promise<void> {
+    if (!canReadSms()) {
+      notice.say("err", "문자는 안드로이드 앱에서만 불러올 수 있다.");
+      return;
+    }
     if (ledger.cardList().length === 0) {
       notice.say("err", "먼저 설정 탭에서 카드와 발신번호를 등록한다.");
       view = "settings";
@@ -64,13 +68,15 @@
     }
     importing = true;
     try {
-      const messages = await fetchMockSms(ledger.cardList(), clock.today);
+      const messages = await readSms(ledger.cardList());
       if (!(await ledger.receiveSms(messages))) return;
       if (ledger.pendingSms().length === 0) {
         notice.say("ok", "처리할 문자가 없다.");
         return;
       }
       inboxOpen = true;
+    } catch (err) {
+      notice.say("err", `문자를 읽지 못했다: ${(err as Error).message}`);
     } finally {
       importing = false;
     }

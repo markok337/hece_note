@@ -80,3 +80,25 @@ Supabase 웹 > SQL Editor > New query 에 `supabase/migrations/`의 파일을 **
 - [ ] GitHub Secrets 세 개가 등록됐다
 
 배포 주소는 첫 배포 후 `https://markok337.github.io/hece_note/` 가 된다.
+
+## 8. 안드로이드 앱 만들고 설치하기
+
+가계부의 문자 불러오기는 폰에 설치한 안드로이드 앱(APK)에서만 된다. APK는 배포 주소를 여는 껍데기라서 한 번 설치하면 화면 업데이트에 다시 설치할 필요가 없다. 플레이스토어에는 올리지 않고 직접 설치한다.
+
+**필요한 것**: Android Studio(SDK 포함), JDK 21~24, Node. Android Studio에 들어 있는 JDK가 25인 경우 Gradle 8.14가 지원하지 않으므로 `JAVA_HOME`을 JDK 23 같은 21~24 버전으로 가리킨다.
+
+**APK 만들기** (저장소 루트에서)
+1. `android/local.properties` 파일에 SDK 경로를 적는다(저장소에는 올리지 않는다): `sdk.dir=C:/Users/<사용자>/AppData/Local/Android/Sdk` (슬래시를 쓴다).
+2. `cd android`, `JAVA_HOME`을 JDK 23 같은 폴더로 지정한 뒤 `gradlew assembleDebug` 를 실행한다. 처음에는 도구를 내려받느라 몇 분 걸린다.
+3. 결과물은 `android/app/build/outputs/apk/debug/app-debug.apk`다.
+
+**폰에 설치하기**
+- USB 디버깅을 켜고 연결했다면 `<SDK경로>/platform-tools/adb install -r app-debug.apk`.
+- 아니면 APK 파일을 폰으로 옮겨 열고, "출처를 알 수 없는 앱 설치"를 허용한다.
+
+**문자 권한 허용하기**: 안드로이드 13 이후에는 직접 설치한 앱의 문자 권한이 막혀 있다.
+1. 앱을 한 번 열었다가 닫는다.
+2. 설정 > 앱 > hece note > 오른쪽 위 ⋮ > "제한된 설정 허용"을 켠다.
+3. 앱에서 가계부의 "불러오기"를 누르면 문자 권한을 묻는다. 허용한다.
+
+앱은 처음 한 번 인터넷으로 배포 주소를 열어야 한다. 인터넷이 끊기면 "인터넷에 연결되지 않았다" 창이 뜬다.

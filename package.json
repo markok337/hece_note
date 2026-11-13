@@ -1,7 +1,7 @@
 {
   "name": "hece-note",
   "private": true,
-  "version": "1.11.0",
+  "version": "1.12.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,10 +10,13 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@capacitor/core": "^8.6.2",
     "@supabase/supabase-js": "^2.119.0",
     "svelte": "^5.57.3"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",

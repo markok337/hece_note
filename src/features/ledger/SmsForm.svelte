@@ -4,7 +4,7 @@
   import { untrack } from "svelte";
   import { notice } from "../../core/notice.svelte";
   import { CASH, MEMO_MAX, newSample, parseAmount, validateMemo, type SmsRow } from "./domain";
-  import { guessFromMock } from "./mock-sms";
+  import { guessFromSms } from "./sms-guess";
   import { ledger } from "./store.svelte";
 
   interface Props {
@@ -16,7 +16,7 @@
 
   // 입력칸은 양식이 열릴 때의 문자로 시작한다. 부모가 {#key} 로 문자마다 새로 연다.
   const initial = untrack(() => sms);
-  const guess = guessFromMock(initial.body, initial.received_at);
+  const guess = guessFromSms(initial.body, initial.received_at);
   const card = ledger.cardList().find((item) => item.sender === initial.sender);
 
   let spentOn = $state(guess?.spent_on ?? "");

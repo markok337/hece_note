@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CATEGORIES, type CategoryRow, type SmsRow } from "../../src/features/ledger/domain";
 
 const repo = vi.hoisted(() => ({
@@ -27,7 +27,6 @@ const repo = vi.hoisted(() => ({
 }));
 vi.mock("../../src/features/ledger/repo", () => repo);
 
-import { fetchMockSms, guessFromMock } from "../../src/features/ledger/mock-sms";
 import { ledger } from "../../src/features/ledger/store.svelte";
 
 const NOV = { year: 2026, month: 11 };
@@ -372,40 +371,5 @@ describe("견본", () => {
   it("없는 카드에는 쓰지 않는다", async () => {
     expect(await ledger.addSample("none", SAMPLE)).toBe(false);
     expect(repo.upsertCard).not.toHaveBeenCalled();
-  });
-});
-
-describe("문자 불러오기(모의)", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  async function load() {
-    const pending = fetchMockSms(ledger.cardList(), "2026-11-13");
-    await vi.runAllTimersAsync();
-    return pending;
-  }
-
-  it("카드마다 승인·취소·결제와 무관한 문자를 돌려준다", async () => {
-    await ledger.addCard({ name: "신한", sender: "15888700", samples: [] });
-    const messages = await load();
-    expect(messages.every((m) => m.sender === "15888700")).toBe(true);
-    const guesses = messages.map((m) => guessFromMock(m.body, m.received_at));
-    expect(guesses.filter((g) => g && g.amount! < 0)).toHaveLength(1);
-    expect(guesses.filter((g) => g === null)).toHaveLength(1);
-    expect(guesses[0]).toEqual({ spent_on: "2026-11-13", amount: 5600, merchant: "스타벅스" });
-  });
-
-  it("같은 카드에서는 매번 같은 문자 식별값이 나온다", async () => {
-    await ledger.addCard({ name: "신한", sender: "15888700", samples: [] });
-    expect((await load()).map((m) => m.sms_key)).toEqual((await load()).map((m) => m.sms_key));
-  });
-
-  it("카드가 없으면 만들어 낼 문자도 없다", async () => {
-    expect(await load()).toEqual([]);
   });
 });

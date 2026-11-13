@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">hece note</string>
+    <string name="title_activity_main">hece note</string>
+    <string name="package_name">io.github.markok337.hecenote</string>
+    <string name="custom_url_scheme">io.github.markok337.hecenote</string>
+</resources>
