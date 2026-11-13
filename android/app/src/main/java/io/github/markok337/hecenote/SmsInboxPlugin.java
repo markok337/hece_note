@@ -36,6 +36,8 @@ public class SmsInboxPlugin extends Plugin {
     private static final Uri INBOX = Uri.parse("content://sms/inbox");
     private static final Uri MMS = Uri.parse("content://mms");
     private static final Uri MMS_PART = Uri.parse("content://mms/part");
+    // 삼성 메시지의 채팅(RCS) 저장소. 카드사 같은 기관의 "대화" 메시지가 여기에 들어 있다.
+    private static final Uri CHAT = Uri.parse("content://im/chat");
 
     /** 권한 상태만 알려 준다. */
     @PluginMethod
@@ -110,6 +112,36 @@ public class SmsInboxPlugin extends Plugin {
             }
         } catch (RuntimeException e) {
             // 기기에 따라 MMS 저장소를 못 읽을 수 있다. 그래도 일반 문자는 돌려준다.
+        }
+        items.addAll(loadChat(since));
+        return items;
+    }
+
+    /**
+     * 삼성 메시지의 채팅(RCS) 저장소에서 받은 메시지를 읽는다. 날짜는 밀리초로 보지만 초 단위로 적혀 있으면 밀리초로 바꾼다.
+     * 이 저장소가 없거나 읽지 못하는 기기에서는 빈 목록을 돌려준다.
+     */
+    private List<Item> loadChat(long since) {
+        List<Item> items = new ArrayList<>();
+        try (Cursor cursor = getContext().getContentResolver().query(
+            CHAT,
+            new String[] { "address", "date", "body", "type" },
+            null,
+            null,
+            "date DESC"
+        )) {
+            while (cursor != null && cursor.moveToNext()) {
+                long date = cursor.getLong(1);
+                if (date < 100_000_000_000L) date *= 1000L;
+                if (date < since) break;
+                // type 2 는 내가 보낸 메시지다.
+                if (cursor.getInt(3) == 2) continue;
+                String body = cursor.getString(2);
+                if (body == null || body.isEmpty()) continue;
+                items.add(new Item(cursor.getString(0), date, body, -1L));
+            }
+        } catch (RuntimeException e) {
+            // 삼성 메시지가 아니거나 저장소를 못 읽는 기기다. 다른 저장소의 문자는 그대로 돌려준다.
         }
         return items;
     }
@@ -256,16 +288,21 @@ public class SmsInboxPlugin extends Plugin {
         lines.add(probe("mms", MMS, null, "msg_box", String.valueOf(since / 1000L), true, wanted));
         // 삼성 메시지의 채팅(RCS) 저장소 후보. 있는지, 읽히는지, 어떤 열이 있는지만 본다.
         for (String path : new String[] { "content://im/chat", "content://im/message", "content://im/sessions" }) {
-            lines.add(probeColumns(path));
+            lines.add(probeColumns(path, wanted));
         }
         return lines;
     }
 
     /** 저장소가 있는지, 읽히는지, 열 이름과 건수를 한 줄로 알려 준다(본문은 읽지 않는다). */
-    private String probeColumns(String path) {
+    private String probeColumns(String path, Set<String> wanted) {
         try (Cursor cursor = getContext().getContentResolver().query(Uri.parse(path), null, null, null, null)) {
             if (cursor == null) return path + " 없음";
-            StringBuilder text = new StringBuilder(path + " " + cursor.getCount() + "건 열: ");
+            int addressIndex = cursor.getColumnIndex("address");
+            int matched = 0;
+            while (addressIndex >= 0 && cursor.moveToNext()) {
+                if (wanted.contains(digits(cursor.getString(addressIndex)))) matched++;
+            }
+            StringBuilder text = new StringBuilder(path + " " + cursor.getCount() + "건 중 등록번호 " + matched + "건 열: ");
             String[] names = cursor.getColumnNames();
             for (int i = 0; i < names.length && i < 40; i++) {
                 if (i > 0) text.append(',');
@@ -326,6 +363,11 @@ public class SmsInboxPlugin extends Plugin {
     static String digits(String raw) {
         if (raw == null) return "";
         String only = raw.replaceAll("[^0-9]", "");
+        if (raw.contains("+82") && only.startsWith("82")) {
+            // +82 로 온 번호는 국내 형식으로 되돌린다. 8자리 대표번호(1588…)는 0을 붙이지 않는다.
+            String national = only.substring(2);
+            return national.length() == 8 && national.startsWith("1") ? national : "0" + national;
+        }
         if (only.startsWith("82") && only.length() > 10) return "0" + only.substring(2);
         return only;
     }
