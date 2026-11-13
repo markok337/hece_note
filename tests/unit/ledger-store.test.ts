@@ -270,14 +270,6 @@ describe("분류", () => {
     expect(ledger.categoryChoices()).not.toContain("의료");
   });
 
-  it("그 분류로 적은 항목 수를 센다", async () => {
-    await ledger.addEntry({ ...FIELDS, category: "식비" });
-    await ledger.addEntry({ ...FIELDS, category: "식비" });
-    await ledger.addEntry({ ...FIELDS, category: "교통" });
-    expect(ledger.categoryUsage("식비")).toBe(2);
-    expect(ledger.categoryUsage("의료")).toBe(0);
-  });
-
   it("마지막 하나는 지울 수 없다", async () => {
     for (const name of [...ledger.categories].slice(1)) await ledger.removeCategory(name);
     expect(ledger.categories).toHaveLength(1);

@@ -81,7 +81,6 @@
           onkeydown={(event) => nudge(event, category)}
         >⋮⋮</button>
         <span class="name">{category}</span>
-        <span class="count" title="{ledger.categoryUsage(category)}건에서 쓰는 중">{ledger.categoryUsage(category)}</span>
         <ConfirmButton name="{category} 분류" width="30px" small disabled={isLast} onconfirm={() => ledger.removeCategory(category)} />
       </li>
     {/each}
@@ -93,7 +92,7 @@
   .add input { flex: 1 1 0; min-width: 0; padding: 9px 8px; font-size: 0.9rem; }
   .add button { flex-shrink: 0; padding: 0 16px; font-size: 0.9rem; }
 
-  /* 분류는 칩으로 가로로 흘러 줄 수가 적다. 칩 하나가 이름, 쓰인 건수, 지우는 버튼이다. */
+  /* 분류는 칩으로 가로로 흘러 줄 수가 적다. 칩 하나가 손잡이, 이름, 지우는 버튼이다. */
   ul { list-style: none; margin: 0; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px; }
   li {
     display: flex;
@@ -121,5 +120,4 @@
     touch-action: none;
   }
   .name { font-size: 0.9rem; font-weight: 700; }
-  .count { min-width: 1.2em; font-size: 0.72rem; text-align: center; color: var(--muted); }
 </style>

@@ -198,11 +198,6 @@ class LedgerStore {
     return [...new Set([...this.categories, ...extra])];
   }
 
-  /** 그 분류로 적은 항목 수. 설정에서 지우기 전에 보여 준다. */
-  categoryUsage(name: string): number {
-    return Object.values(this.entries).filter((entry) => entry.category === name).length;
-  }
-
   #newEntry(input: NewEntry): LedgerEntry {
     return { sms_key: null, ...input, id: crypto.randomUUID(), created_at: new Date().toISOString() };
   }
