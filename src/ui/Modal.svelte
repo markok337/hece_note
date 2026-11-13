@@ -30,7 +30,7 @@
       return;
     }
     if (event.key !== "Tab" || !modalEl) return;
-    const items = [...modalEl.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled)")];
+    const items = [...modalEl.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)")];
     if (items.length === 0) return;
     const first = items[0];
     const last = items[items.length - 1];

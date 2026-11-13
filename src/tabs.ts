@@ -6,6 +6,8 @@ import BlogView from "./features/blog/BlogView.svelte";
 import { blog } from "./features/blog/store.svelte";
 import FridgeView from "./features/fridge/FridgeView.svelte";
 import { fridge } from "./features/fridge/store.svelte";
+import LedgerView from "./features/ledger/LedgerView.svelte";
+import { ledger } from "./features/ledger/store.svelte";
 
 export interface Feature {
   id: string;
@@ -36,6 +38,14 @@ export const FEATURES = [
     start: () => fridge.start(),
     stop: () => fridge.stop(),
     isLive: () => fridge.live,
+  },
+  {
+    id: "ledger",
+    label: "가계부",
+    view: LedgerView,
+    start: () => ledger.start(),
+    stop: () => ledger.stop(),
+    isLive: () => ledger.live,
   },
 ] as const satisfies readonly Feature[];
 
