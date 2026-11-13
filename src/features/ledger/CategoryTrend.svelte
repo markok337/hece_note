@@ -1,7 +1,7 @@
 <script lang="ts">
   // 분류 추이: 고른 분류(또는 전체)가 최근 몇 달 동안 어떻게 변했는지 막대와 표로 보여 준다.
   import type { MonthRef } from "../../core/dates";
-  import { TREND_MONTHS, categoryTrend, formatShortWon, formatWon, type LedgerEntry } from "./domain";
+  import { TREND_MONTHS, categoryTrend, formatShortWon, formatWon, monthKeyLabel, type LedgerEntry } from "./domain";
 
   interface Props {
     entries: readonly LedgerEntry[];
@@ -22,6 +22,17 @@
   /** 표는 가장 최근 달이 위. */
   const rows = $derived([...points].reverse());
 
+  // 막대마다 값을 적으면 12개월에서는 글자가 서로 겹친다. 가장 높은 달과 고른 달(마지막)만 막대 위에 적고 나머지는 표로 본다.
+  const peakIndex = $derived(peak > 0 ? points.findIndex((point) => point.total === peak) : -1);
+  const labelled = $derived.by(() => {
+    const last = points.length - 1;
+    const shown = new Set<number>();
+    if (peakIndex >= 0) shown.add(peakIndex);
+    // 두 달이 이웃하면 글자가 닿으므로 마지막 달 글자를 뺀다.
+    if (peakIndex < 0 || last - peakIndex >= 2 || peakIndex === last) shown.add(last);
+    return shown;
+  });
+
   // 막대 위 글자가 칸 위로 넘치지 않도록 가장 높은 막대를 칸 높이의 80%까지만 올린다.
   const MAX_BAR_PERCENT = 80;
   const barPercent = (total: number): number => (peak > 0 ? (Math.max(total, 0) / peak) * MAX_BAR_PERCENT : 0);
@@ -36,7 +47,7 @@
   <div class="sheet">
     <h3 class="band">
       <span>분류 추이</span>
-      <span class="range">최근 {TREND_MONTHS}개월 · {points[0].label} ~ {points[points.length - 1].label}</span>
+      <span class="range">최근 {TREND_MONTHS}개월 · {monthKeyLabel(points[0].key)} ~ {monthKeyLabel(points[points.length - 1].key)}</span>
     </h3>
 
     <div class="chips" role="group" aria-label="분류 고르기">
@@ -50,7 +61,7 @@
       {#each points as point, i (point.key)}
         <div class="col" title="{point.label} {formatWon(point.total)}">
           <span class="slot">
-            <span class="value">{formatShortWon(point.total)}</span>
+            {#if labelled.has(i)}<span class="value">{formatShortWon(point.total)}</span>{/if}
             <span class="bar" class:current={i === points.length - 1} style:height="{barPercent(point.total)}%"></span>
           </span>
           <span class="x">{point.label}</span>
@@ -83,7 +94,7 @@
 <style>
   .trend { flex: 1; min-height: 0; overflow-y: auto; }
 
-  /* 월 통계와 같은 표 한 장이다(.sheet, .band 는 style.css). 띠 제목 아래에 고르는 칩, 그래프, 표가 이어진다. */
+  /* 결산과 같은 표 한 장이다(.sheet, .band 는 style.css). 띠 제목 아래에 고르는 칩, 그래프, 표가 이어진다. */
   .range { font-weight: 400; font-size: 0.75rem; color: var(--text); }
 
   .chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
@@ -99,19 +110,19 @@
   }
   .chip.active { color: var(--accent-text); background: var(--accent); border-color: var(--accent); font-weight: 700; }
 
-  /* 막대는 얇고 끝만 둥글다. 한 가지 색이고, 고른 달(마지막 달)만 진하다. 값은 막대 위에 바로 적는다. */
-  .chart { display: flex; gap: 6px; padding: 10px 10px 6px; border-bottom: 1px solid var(--line); }
+  /* 막대는 얇고 끝만 둥글다. 한 가지 색이고, 고른 달(마지막 달)만 진하다. 값은 가장 높은 달과 고른 달만 막대 위에 적는다. */
+  .chart { display: flex; gap: 3px; padding: 10px 8px 6px; border-bottom: 1px solid var(--line); }
   .col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .slot { width: 100%; height: 120px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
-  .value { font-size: 0.7rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .value { font-size: 0.65rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .bar {
-    width: min(60%, 28px);
+    width: min(70%, 20px);
     min-height: 2px;
     background: color-mix(in srgb, var(--accent) 45%, white);
     border-radius: 4px 4px 0 0;
   }
   .bar.current { background: var(--accent); }
-  .x { font-size: 0.75rem; color: var(--muted); }
+  .x { font-size: 0.62rem; color: var(--muted); white-space: nowrap; }
 
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; font-weight: 400; }

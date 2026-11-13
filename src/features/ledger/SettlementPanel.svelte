@@ -1,5 +1,5 @@
 <script lang="ts">
-  // 월 통계: 합계, 예산과 차액, 분류별·구분별 막대. 한 장의 표처럼 띠 제목 아래에 줄이 이어진다.
+  // 결산: 한 달의 합계, 예산과 차액, 분류별·구분별 막대. 한 장의 표처럼 띠 제목 아래에 줄이 이어진다.
   // 분류·구분 줄을 누르면 그 묶음의 이력을 보는 창을 연다. 예산은 여기서 보기만 하고 설정 탭에서 정한다.
   import { budgetStatus, formatWon, type MonthStats, type Slice, type SliceKind } from "./domain";
 

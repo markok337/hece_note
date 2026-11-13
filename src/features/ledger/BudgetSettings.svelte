@@ -5,13 +5,13 @@
   import { parseYmd } from "../../core/dates";
   import { notice } from "../../core/notice.svelte";
   import ConfirmButton from "../../ui/ConfirmButton.svelte";
-  import { formatWon, monthKeyLabel, parseBudget, type BudgetScope } from "../ledger/domain";
-  import { ledger } from "../ledger/store.svelte";
+  import { formatWon, monthKeyLabel, parseBudget, type BudgetScope } from "./domain";
+  import { ledger } from "./store.svelte";
 
-  const SCOPES: readonly { id: BudgetScope; label: string; help: string }[] = [
-    { id: "base", label: "기본값 변경", help: "따로 정하지 않은 모든 달에 쓰는 기본 예산을 바꾼다. 아래 \"해당 월 이후\" 규칙이 있으면 그 달부터는 그 규칙이 먼저다." },
-    { id: "only", label: "해당 월만", help: "고른 달 한 달만 이 금액을 쓴다. 다른 달은 그대로다." },
-    { id: "from", label: "해당 월 이후", help: "고른 달부터 다음에 바꿀 때까지 이 금액이 기본값이 된다. 이전 달은 그대로다." },
+  const SCOPES: readonly { id: BudgetScope; label: string }[] = [
+    { id: "base", label: "기본값 변경" },
+    { id: "only", label: "해당 월만" },
+    { id: "from", label: "해당 월 이후" },
   ];
 
   const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
@@ -23,7 +23,6 @@
   let scope = $state<BudgetScope>("base");
   let monthText = $state(clock.today.slice(0, 7));
 
-  const scopeHelp = $derived(SCOPES.find((item) => item.id === scope)?.help ?? "");
   const rules = $derived(ledger.budgetRules);
   const sorted = (record: Record<string, number>): [string, number][] =>
     Object.entries(record).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
@@ -51,14 +50,12 @@
 </script>
 
 <div class="sheet">
-  <h2 class="band">예산</h2>
+  <h2 class="band">
+    <span>예산</span>
+    <span class="now">이번 달 {nowBudget === null ? "정하지 않음" : formatWon(nowBudget)}</span>
+  </h2>
 
-  <p class="cell now">
-    <span>이번 달({monthKeyLabel(clock.today.slice(0, 7))}) 적용 예산</span>
-    <strong>{nowBudget === null ? "정하지 않음" : formatWon(nowBudget)}</strong>
-  </p>
-
-  <form class="cell form" onsubmit={apply}>
+  <form class="form" onsubmit={apply}>
     <div class="scopes" role="group" aria-label="적용 범위">
       {#each SCOPES as item (item.id)}
         <button type="button" class="scope" class:active={scope === item.id} aria-pressed={scope === item.id} onclick={() => (scope = item.id)}>
@@ -66,7 +63,6 @@
         </button>
       {/each}
     </div>
-    <p class="help">{scopeHelp}</p>
     <div class="fields">
       {#if scope !== "base"}
         <input class="month" type="month" bind:value={monthText} aria-label="적용할 달" />
@@ -101,11 +97,9 @@
 </div>
 
 <style>
-  .cell { margin: 0; padding: 8px 10px; }
-  .now { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; color: var(--muted); }
-  .now strong { color: var(--text); font-variant-numeric: tabular-nums; }
+  .now { font-size: 0.75rem; font-weight: 400; }
 
-  .form { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .form { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; }
   .scopes { display: flex; flex-wrap: wrap; gap: 4px; }
   .scope {
     height: 30px;
@@ -118,8 +112,6 @@
     border-radius: 15px;
   }
   .scope.active { color: var(--accent-text); background: var(--accent); border-color: var(--accent); font-weight: 700; }
-  /* 설명 글이 범위마다 길이가 달라도 아래 입력 줄이 움직이지 않게 높이를 고정한다. */
-  .help { margin: 0; min-height: 3.2em; font-size: 0.78rem; line-height: 1.5; color: var(--muted); }
 
   .fields { display: flex; gap: 6px; }
   .fields input { flex: 1 1 0; min-width: 0; padding: 9px 8px; font-size: 0.9rem; }

@@ -8,7 +8,6 @@ import FridgeView from "./features/fridge/FridgeView.svelte";
 import { fridge } from "./features/fridge/store.svelte";
 import LedgerView from "./features/ledger/LedgerView.svelte";
 import { ledger } from "./features/ledger/store.svelte";
-import SettingsView from "./features/settings/SettingsView.svelte";
 
 export interface Feature {
   id: string;
@@ -46,15 +45,6 @@ export const FEATURES = [
     view: LedgerView,
     start: () => ledger.start(),
     stop: () => ledger.stop(),
-    isLive: () => ledger.live,
-  },
-  {
-    id: "settings",
-    label: "설정",
-    view: SettingsView,
-    // 설정은 가계부 스토어의 값을 고친다. 불러오기·정리는 가계부 탭이 하므로 여기서는 할 일이 없고, 연결 상태도 같다.
-    start: async () => {},
-    stop: async () => {},
     isLive: () => ledger.live,
   },
 ] as const satisfies readonly Feature[];

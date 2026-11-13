@@ -250,15 +250,19 @@ describe("분류", () => {
 describe("categoryTrend", () => {
   const end = { year: 2026, month: 11 };
 
-  it("끝 달까지 6개월을 오래된 달부터 돌려준다", () => {
+  it("끝 달까지 12개월을 오래된 달부터 돌려준다", () => {
     const points = categoryTrend([], end, null);
-    expect(points.map((p) => p.key)).toEqual(["2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11"]);
-    expect(points.map((p) => p.label)).toEqual(["6월", "7월", "8월", "9월", "10월", "11월"]);
+    expect(points).toHaveLength(12);
+    expect(points[0].key).toBe("2025-12");
+    expect(points.at(-1)!.key).toBe("2026-11");
+    expect(points.slice(0, 3).map((p) => p.label)).toEqual(["12월", "1월", "2월"]);
   });
 
   it("연도가 바뀌어도 달을 맞게 센다", () => {
     const points = categoryTrend([], { year: 2026, month: 2 }, null);
-    expect(points.map((p) => p.key)).toEqual(["2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02"]);
+    expect(points[0].key).toBe("2025-03");
+    expect(points.at(-1)!.key).toBe("2026-02");
+    expect(new Set(points.map((p) => p.key)).size).toBe(12);
   });
 
   it("고른 분류만 달별로 합치고 전월 대비를 낸다", () => {
@@ -290,7 +294,8 @@ describe("categoryTrend", () => {
   });
 
   it("그래프 첫 달의 전월 대비도 그래프 밖의 지난달과 비교해 낸다", () => {
-    const points = categoryTrend([entry("a", "2026-05-10", 3000), entry("b", "2026-06-10", 5000)], end, null);
+    const points = categoryTrend([entry("a", "2025-11-10", 3000), entry("b", "2025-12-10", 5000)], end, null);
+    expect(points[0].key).toBe("2025-12");
     expect(points[0].delta).toBe(2000);
   });
 

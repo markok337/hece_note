@@ -272,7 +272,7 @@ export function monthStats(all: readonly LedgerEntry[], ref: MonthRef): MonthSta
 }
 
 /** 추이 그래프가 보여 주는 개월 수. */
-export const TREND_MONTHS = 6;
+export const TREND_MONTHS = 12;
 
 export interface TrendPoint {
   key: string;

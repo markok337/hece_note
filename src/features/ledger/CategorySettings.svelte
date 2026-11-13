@@ -3,8 +3,8 @@
   // 뺀 분류로 이미 적은 이력은 지우지 않고 이름 그대로 남는다.
   import { notice } from "../../core/notice.svelte";
   import ConfirmButton from "../../ui/ConfirmButton.svelte";
-  import { CATEGORY_NAME_MAX, validateCategoryName } from "../ledger/domain";
-  import { ledger } from "../ledger/store.svelte";
+  import { CATEGORY_NAME_MAX, validateCategoryName } from "./domain";
+  import { ledger } from "./store.svelte";
 
   let name = $state("");
 
@@ -22,11 +22,10 @@
 <div class="sheet">
   <h2 class="band">분류</h2>
 
-  <form class="cell add" onsubmit={add}>
+  <form class="add" onsubmit={add}>
     <input bind:value={name} maxlength={CATEGORY_NAME_MAX} placeholder="새 분류 이름" aria-label="새 분류 이름" />
     <button type="submit">추가</button>
   </form>
-  <p class="cell help">뺀 분류로 이미 적은 지출은 지워지지 않고 이름 그대로 남는다. 분류는 하나 이상 있어야 한다.</p>
 
   <ul>
     {#each categories as category (category)}
@@ -40,11 +39,9 @@
 </div>
 
 <style>
-  .cell { margin: 0; padding: 8px 10px; }
-  .add { gap: 6px; border-bottom: 1px solid var(--line); }
+  .add { gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   .add input { flex: 1 1 0; min-width: 0; padding: 9px 8px; font-size: 0.9rem; }
   .add button { flex-shrink: 0; padding: 0 16px; font-size: 0.9rem; }
-  .help { font-size: 0.78rem; line-height: 1.5; color: var(--muted); border-bottom: 1px solid var(--line); }
 
   ul { list-style: none; margin: 0; padding: 0; }
   li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }

@@ -3,7 +3,6 @@
   import { parseYmd, shiftMonth, type MonthRef } from "../../core/dates";
   import { notice } from "../../core/notice.svelte";
   import { session } from "../../core/session.svelte";
-  import { viewport } from "../../core/viewport.svelte";
   import Modal from "../../ui/Modal.svelte";
   import BudgetStrip from "./BudgetStrip.svelte";
   import CardManager from "./CardManager.svelte";
@@ -12,36 +11,40 @@
   import EntryForm from "./EntryForm.svelte";
   import EntryList from "./EntryList.svelte";
   import ImportPreview from "./ImportPreview.svelte";
-  import StatsPanel from "./StatsPanel.svelte";
+  import SettingsPanel from "./SettingsPanel.svelte";
+  import SettlementPanel from "./SettlementPanel.svelte";
   import { entriesBy, groupByDate, monthStats, type LedgerEntry, type SliceKind } from "./domain";
   import { fetchMockSms, type MockSmsResult } from "./mock-sms";
   import { ledger } from "./store.svelte";
 
-  type Mode = "list" | "stats";
-  type StatsView = "month" | "trend";
+  // 가계부 안의 탭. 목록은 지출 표, 결산은 한 달 정리, 통계는 분류별 월 추이, 설정은 예산과 분류다.
+  const VIEWS = [
+    { id: "list", label: "목록" },
+    { id: "settlement", label: "결산" },
+    { id: "stats", label: "통계" },
+    { id: "settings", label: "설정" },
+  ] as const;
+  type ViewId = (typeof VIEWS)[number]["id"];
 
   let month = $state<MonthRef>({ year: parseYmd(clock.today).year, month: parseYmd(clock.today).month });
-  // 좁은 화면은 목록과 통계를 번갈아 보고, 넓은 화면은 둘을 나란히 둔다.
-  let mode = $state<Mode>("list");
-  // 통계 안에서 월 통계와 분류 추이를 오간다. 어느 화면 크기에서나 같다.
-  let statsView = $state<StatsView>("month");
-  // 분류 추이에서 고른 분류. null 은 전체.
+  let view = $state<ViewId>("list");
+  // 통계에서 고른 분류. null 은 전체.
   let trendCategory = $state<string | null>(null);
   // 지출 창: "new" 는 새로 적기, 항목은 고치기, null 은 닫힘.
   let editing = $state<LedgerEntry | "new" | null>(null);
   let cardsOpen = $state(false);
   let importing = $state(false);
   let importResult = $state<MockSmsResult | null>(null);
-  // 통계에서 눌러 연 이력 창. 고른 분류(또는 구분)의 이름을 가진다.
+  // 결산에서 눌러 연 이력 창. 고른 분류(또는 구분)의 이름을 가진다.
   let drill = $state<{ kind: SliceKind; label: string } | null>(null);
 
+  const allEntries = $derived(Object.values(ledger.entries));
   const entries = $derived(ledger.entriesIn(month));
   const groups = $derived(groupByDate(entries));
   const stats = $derived(monthStats(allEntries, month));
   const budget = $derived(ledger.budgetFor(month));
   const drillEntries = $derived(drill ? entriesBy(entries, drill.kind, drill.label) : []);
-  const allEntries = $derived(Object.values(ledger.entries));
-  // 설정에서 지운 분류라도 이력이 있으면 추이에서 고를 수 있다.
+  // 설정에서 지운 분류라도 이력이 있으면 통계에서 고를 수 있다.
   const trendChoices = $derived(ledger.categoryChoices(...allEntries.map((entry) => entry.category)));
 
   function step(delta: number): void {
@@ -74,7 +77,7 @@
   }
 </script>
 
-<div class="ledger" class:wide={viewport.isWide}>
+<div class="ledger">
   <header>
     <button type="button" class="sub icon" aria-label="이전 달" onclick={() => step(-1)}>‹</button>
     <button type="button" class="title" aria-label="이번 달로" onclick={goToday}>{month.year}년 {month.month}월</button>
@@ -96,41 +99,43 @@
   </header>
 
   <div class="bar">
-    {#if !viewport.isWide}
-      <div class="modes" role="group" aria-label="보기">
-        <button type="button" class="mode" class:active={mode === "list"} aria-pressed={mode === "list"} onclick={() => (mode = "list")}>목록</button>
-        <button type="button" class="mode" class:active={mode === "stats"} aria-pressed={mode === "stats"} onclick={() => (mode = "stats")}>통계</button>
-      </div>
-    {/if}
+    <div class="modes" role="tablist" aria-label="가계부 화면">
+      {#each VIEWS as item (item.id)}
+        <button
+          type="button"
+          role="tab"
+          id="ledger-tab-{item.id}"
+          aria-controls="ledger-panel"
+          class="mode"
+          class:active={view === item.id}
+          aria-selected={view === item.id}
+          onclick={() => (view = item.id)}
+        >
+          {item.label}
+        </button>
+      {/each}
+    </div>
     <span class="spacer"></span>
     <button type="button" class="add" onclick={() => (editing = "new")}>+ 지출 추가</button>
   </div>
 
-  <div class="body">
-    {#if viewport.isWide || mode === "list"}
-      <div class="main">
-        <BudgetStrip spent={stats.total} {budget} />
-        <EntryList {groups} onedit={(entry) => (editing = entry)} />
-      </div>
-    {/if}
-    {#if viewport.isWide || mode === "stats"}
-      <aside class="side" class:full={!viewport.isWide}>
-        <div class="modes sub-modes" role="group" aria-label="통계 종류">
-          <button type="button" class="mode" class:active={statsView === "month"} aria-pressed={statsView === "month"} onclick={() => (statsView = "month")}>월 통계</button>
-          <button type="button" class="mode" class:active={statsView === "trend"} aria-pressed={statsView === "trend"} onclick={() => (statsView = "trend")}>분류 추이</button>
-        </div>
-        {#if statsView === "month"}
-          <StatsPanel {stats} {budget} onpick={(kind, label) => (drill = { kind, label })} />
-        {:else}
-          <CategoryTrend
-            entries={allEntries}
-            end={month}
-            categories={trendChoices}
-            category={trendCategory}
-            onselect={(category) => (trendCategory = category)}
-          />
-        {/if}
-      </aside>
+  <!-- 넓은 화면에서도 내용이 한쪽으로 퍼지지 않게 폭을 제한하고 가운데에 둔다. -->
+  <div class="content" id="ledger-panel" role="tabpanel" aria-labelledby="ledger-tab-{view}">
+    {#if view === "list"}
+      <BudgetStrip spent={stats.total} {budget} />
+      <EntryList {groups} onedit={(entry) => (editing = entry)} />
+    {:else if view === "settlement"}
+      <SettlementPanel {stats} {budget} onpick={(kind, label) => (drill = { kind, label })} />
+    {:else if view === "stats"}
+      <CategoryTrend
+        entries={allEntries}
+        end={month}
+        categories={trendChoices}
+        category={trendCategory}
+        onselect={(category) => (trendCategory = category)}
+      />
+    {:else}
+      <SettingsPanel />
     {/if}
   </div>
 
@@ -173,12 +178,12 @@
   .spacer { flex: 1; }
   .import { font-weight: 700; }
 
-  .bar { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .modes { display: flex; gap: 4px; }
-  .sub-modes { flex-shrink: 0; margin-bottom: 6px; }
+  .bar { flex-shrink: 0; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .modes { display: flex; gap: 3px; min-width: 0; }
   .mode {
+    flex-shrink: 0;
     height: 32px;
-    padding: 0 14px;
+    padding: 0 11px;
     font-size: 0.85rem;
     font-weight: 400;
     color: var(--muted);
@@ -187,11 +192,15 @@
     border-radius: 16px;
   }
   .mode.active { color: var(--accent-text); background: var(--accent); border-color: var(--accent); font-weight: 700; }
-  .add { height: 34px; padding: 0 14px; font-size: 0.9rem; white-space: nowrap; }
+  .add { flex-shrink: 0; height: 34px; padding: 0 12px; font-size: 0.9rem; white-space: nowrap; }
 
-  .body { flex: 1; display: flex; min-height: 0; }
-  .wide .body { gap: 12px; }
-  .main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-  .side { width: 340px; flex-shrink: 0; min-height: 0; display: flex; flex-direction: column; }
-  .side.full { width: auto; flex: 1; min-width: 0; }
+  .content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+  }
 </style>
