@@ -13,7 +13,7 @@
   import SettingsPanel from "./SettingsPanel.svelte";
   import SettlementPanel from "./SettlementPanel.svelte";
   import { SAVINGS_CATEGORY, entriesBy, groupByDate, isCounted, monthStats, type LedgerEntry, type SliceKind } from "./domain";
-  import { canReadSms, readSms } from "./sms-reader";
+  import { canReadSms, inboxSummary, readSms } from "./sms-reader";
   import { ledger } from "./store.svelte";
 
   // 가계부 안의 탭. 목록은 지출 표, 결산은 한 달 정리, 통계는 분류별 월 추이, 설정은 예산·분류·카드다.
@@ -69,6 +69,11 @@
     importing = true;
     try {
       const messages = await readSms(ledger.cardList());
+      if (messages.length === 0) {
+        // 등록한 번호의 문자가 하나도 없으면 문자함에 무엇이 있는지 알려 준다.
+        notice.say("err", `등록한 번호의 문자가 없다. ${await inboxSummary()}`);
+        return;
+      }
       if (!(await ledger.receiveSms(messages))) return;
       if (ledger.pendingSms().length === 0) {
         notice.say("ok", "처리할 문자가 없다.");

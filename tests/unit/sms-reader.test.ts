@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Card } from "../../src/features/ledger/domain";
 import { guessFromSms } from "../../src/features/ledger/sms-guess";
 
-const plugin = vi.hoisted(() => ({ read: vi.fn() }));
+const plugin = vi.hoisted(() => ({ read: vi.fn(), summary: vi.fn() }));
 vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => true },
   registerPlugin: () => plugin,
 }));
 
-import { canReadSms, readSms, smsKey } from "../../src/features/ledger/sms-reader";
+import { canReadSms, inboxSummary, readSms, smsKey } from "../../src/features/ledger/sms-reader";
 
 const NOW = new Date("2026-11-13T03:00:00Z");
 
@@ -63,6 +63,25 @@ describe("문자 읽기", () => {
   it("권한을 거절하면 예외가 그대로 올라간다", async () => {
     plugin.read.mockRejectedValue(new Error("문자 읽기 권한이 허용되지 않았다."));
     await expect(readSms([card("신한", "15888700")], NOW)).rejects.toThrow("권한");
+  });
+});
+
+describe("문자함 점검", () => {
+  it("전체 건수와 번호별 건수를 많은 순으로 보여 준다", async () => {
+    plugin.summary.mockResolvedValue({
+      total: 5,
+      senders: [
+        { sender: "0101234", count: 1 },
+        { sender: "15888700", count: 4 },
+      ],
+    });
+    expect(await inboxSummary(NOW)).toBe("문자함 최근 30일 5건. 번호별: 15888700 4건, 0101234 1건");
+    expect(plugin.summary).toHaveBeenCalledWith({ since: Date.parse("2026-10-14T03:00:00Z") });
+  });
+
+  it("문자함이 비어 있으면 그렇게 알린다", async () => {
+    plugin.summary.mockResolvedValue({ total: 0, senders: [] });
+    expect(await inboxSummary(NOW)).toContain("한 건도 없다");
   });
 });
 

@@ -17,6 +17,8 @@ import com.getcapacitor.annotation.PermissionCallback;
 import org.json.JSONException;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -98,6 +100,48 @@ public class SmsInboxPlugin extends Plugin {
         }
         JSObject result = new JSObject();
         result.put("messages", messages);
+        call.resolve(result);
+    }
+
+    /**
+     * 점검용. since(밀리초) 이후 문자함의 전체 건수와 보낸 번호별 건수만 알려 준다. 본문은 읽지 않는다.
+     * 등록한 번호의 문자가 안 보일 때 문자함에 무엇이 있는지 확인하려는 것이다.
+     */
+    @PluginMethod
+    public void summary(PluginCall call) {
+        if (getPermissionState("sms") != PermissionState.GRANTED) {
+            call.reject("문자 읽기 권한이 허용되지 않았다.");
+            return;
+        }
+        long since = call.getData().optLong("since", 0L);
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        int total = 0;
+        try (Cursor cursor = getContext().getContentResolver().query(
+            INBOX,
+            new String[] { "address" },
+            "date >= ?",
+            new String[] { String.valueOf(since) },
+            "date DESC"
+        )) {
+            while (cursor != null && cursor.moveToNext()) {
+                total++;
+                String sender = digits(cursor.getString(0));
+                counts.put(sender, counts.getOrDefault(sender, 0) + 1);
+            }
+        } catch (SecurityException e) {
+            call.reject("문자함을 읽을 수 없다.");
+            return;
+        }
+        JSArray senders = new JSArray();
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            JSObject item = new JSObject();
+            item.put("sender", entry.getKey());
+            item.put("count", entry.getValue());
+            senders.put(item);
+        }
+        JSObject result = new JSObject();
+        result.put("total", total);
+        result.put("senders", senders);
         call.resolve(result);
     }
 
