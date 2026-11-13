@@ -76,7 +76,8 @@
       }
       if (!(await ledger.receiveSms(messages))) return;
       if (ledger.pendingSms().length === 0) {
-        notice.say("ok", "처리할 문자가 없다.");
+        // 읽은 문자가 이미 처리됐거나 무시된 경우다. 어디에 얼마나 있는지 점검 문구와 함께 알려 준다.
+        notice.say("ok", `처리할 문자가 없다. 읽은 문자 ${messages.length}건, 무시한 문자 ${ledger.ignoredCount}건. ${await inboxSummary()}`);
         return;
       }
       inboxOpen = true;
