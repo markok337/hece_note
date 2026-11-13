@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   CASH,
+  budgetFor,
+  budgetStatus,
   dayLabel,
+  entriesBy,
   formatWon,
   groupByDate,
   monthStats,
   parseAmount,
+  parseBudget,
   parseSender,
   splitSamples,
   validateCardName,
@@ -140,5 +144,62 @@ describe("표시", () => {
 
   it("날짜 제목에 요일을 붙인다", () => {
     expect(dayLabel("2026-11-13")).toBe("11월 13일 (금)");
+  });
+});
+
+describe("예산", () => {
+  const budgets = { "2026-09": 1_000_000, "2026-11": 1_200_000 };
+
+  it("정한 달부터 다음에 바꿀 때까지 이어진다", () => {
+    expect(budgetFor(budgets, { year: 2026, month: 9 })).toBe(1_000_000);
+    expect(budgetFor(budgets, { year: 2026, month: 10 })).toBe(1_000_000);
+    expect(budgetFor(budgets, { year: 2026, month: 11 })).toBe(1_200_000);
+    expect(budgetFor(budgets, { year: 2027, month: 2 })).toBe(1_200_000);
+  });
+
+  it("처음 정한 달보다 앞선 달에는 예산이 없다", () => {
+    expect(budgetFor(budgets, { year: 2026, month: 8 })).toBeNull();
+    expect(budgetFor({}, { year: 2026, month: 11 })).toBeNull();
+  });
+
+  it("예산 글자는 쉼표와 원을 떼고 읽고, 숫자가 아니거나 0이면 받지 않는다", () => {
+    expect(parseBudget("1,200,000원")).toEqual({ ok: true, value: 1_200_000 });
+    for (const raw of ["", "abc", "0", "-5", "1.5", "1,000,000,001"]) expect(parseBudget(raw).ok).toBe(false);
+  });
+
+  it("차액은 예산에서 지출을 뺀 값이다", () => {
+    expect(budgetStatus(300_000, 1_000_000)).toEqual({ budget: 1_000_000, spent: 300_000, remaining: 700_000, over: false, ratio: 0.3 });
+  });
+
+  it("예산을 넘으면 초과로 표시하고 비율은 1에서 멈춘다", () => {
+    expect(budgetStatus(1_250_000, 1_000_000)).toMatchObject({ remaining: -250_000, over: true, ratio: 1 });
+  });
+
+  it("예산과 꼭 같게 쓰면 초과가 아니다", () => {
+    expect(budgetStatus(1_000_000, 1_000_000)).toMatchObject({ remaining: 0, over: false, ratio: 1 });
+  });
+
+  it("환불이 커서 지출이 음수여도 비율은 0 아래로 내려가지 않는다", () => {
+    expect(budgetStatus(-5000, 1_000_000)).toMatchObject({ remaining: 1_005_000, over: false, ratio: 0 });
+  });
+});
+
+describe("entriesBy", () => {
+  const list = [
+    entry("a", "2026-11-01", 1, { category: "식비", method: "신한" }),
+    entry("b", "2026-11-02", 2, { category: "교통", method: "신한" }),
+    entry("c", "2026-11-03", 3, { category: "식비", method: CASH }),
+  ];
+
+  it("분류로 거른다", () => {
+    expect(entriesBy(list, "category", "식비").map((e) => e.id)).toEqual(["a", "c"]);
+  });
+
+  it("구분으로 거른다", () => {
+    expect(entriesBy(list, "method", "신한").map((e) => e.id)).toEqual(["a", "b"]);
+  });
+
+  it("없는 이름이면 빈 목록이다", () => {
+    expect(entriesBy(list, "category", "의료")).toEqual([]);
   });
 });

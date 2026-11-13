@@ -2,7 +2,7 @@
 // DB 연동 단계에서 이 파일의 저장 부분만 repo 호출로 바꾼다. 화면이 부르는 메서드의 모양은 그대로 둔다.
 
 import type { Card, LedgerEntry } from "./domain";
-import { entriesInMonth, sortNewestFirst } from "./domain";
+import { budgetFor, entriesInMonth, monthKey, sortNewestFirst } from "./domain";
 import type { MonthRef } from "../../core/dates";
 
 export type NewEntry = Omit<LedgerEntry, "id" | "created_at" | "sms_key"> & { sms_key?: string | null };
@@ -11,6 +11,8 @@ export type NewCard = Pick<Card, "name" | "sender" | "samples">;
 class LedgerStore {
   entries = $state<Record<string, LedgerEntry>>({});
   cards = $state<Record<string, Card>>({});
+  /** 달별 예산. 키는 "2026-11". 정한 달부터 다음에 바꿀 때까지 이어진다(domain.budgetFor). */
+  budgets = $state<Record<string, number>>({});
   /** 가져오지 않기로 한 문자(읽지 못한 안내문 등)의 식별값. 다시 보여 주지 않는다. */
   dismissed = $state<string[]>([]);
   loaded = $state(false);
@@ -25,7 +27,19 @@ class LedgerStore {
     this.loaded = false;
     this.entries = {};
     this.cards = {};
+    this.budgets = {};
     this.dismissed = [];
+  }
+
+  /** 그 달에 적용되는 예산. 정한 적이 없으면 null. */
+  budgetFor(ref: MonthRef): number | null {
+    return budgetFor(this.budgets, ref);
+  }
+
+  /** 그 달부터 적용할 예산을 정한다. 값이 올바른지는 부르는 쪽이 확인한다. */
+  async setBudget(ref: MonthRef, amount: number): Promise<boolean> {
+    this.budgets[monthKey(ref)] = amount;
+    return true;
   }
 
   /** 한 달의 항목. 최근 것이 먼저. */

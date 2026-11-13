@@ -44,6 +44,26 @@ describe("항목", () => {
   });
 });
 
+describe("예산", () => {
+  it("정한 달부터 이어지고 앞선 달에는 없다", async () => {
+    await ledger.setBudget({ year: 2026, month: 10 }, 900_000);
+    expect(ledger.budgetFor({ year: 2026, month: 12 })).toBe(900_000);
+    expect(ledger.budgetFor({ year: 2026, month: 9 })).toBeNull();
+  });
+
+  it("같은 달에 다시 정하면 값이 바뀐다", async () => {
+    await ledger.setBudget(NOV, 1_000_000);
+    await ledger.setBudget(NOV, 1_100_000);
+    expect(ledger.budgetFor(NOV)).toBe(1_100_000);
+  });
+
+  it("stop 하면 예산도 비운다", async () => {
+    await ledger.setBudget(NOV, 1_000_000);
+    await ledger.stop();
+    expect(ledger.budgetFor(NOV)).toBeNull();
+  });
+});
+
 describe("문자 불러오기(모의)", () => {
   beforeEach(() => {
     vi.useFakeTimers();

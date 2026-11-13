@@ -2,14 +2,15 @@
 
 가계부 탭은 카드 결제 문자를 불러와 지출로 기록한다. 화면과 규칙 중 확정한 것은 [decisions.md의 "확정한 것: 가계부"](decisions.md)에 있다. 이 문서는 아직 만들지 않은 단계만 적는다.
 
-**1단계(화면 시안)는 끝났다.** 메모리 저장, 모의 불러오기까지다. 아래 2~4단계는 순서대로 진행하고, 단계가 끝날 때마다 `decisions.md`의 해당 문장("1단계의 불러오기는 모의다" 등)을 현재 상태로 고친다.
+**1단계(화면 시안)는 끝났다.** 메모리 저장, 모의 불러오기, 예산, 표 화면, 통계 이력 창까지다. 아래 2~4단계는 순서대로 진행하고, 단계가 끝날 때마다 `decisions.md`의 해당 문장("1단계의 불러오기는 모의다" 등)을 현재 상태로 고친다.
 
 ## 2단계: DB 연동
 
-화면이 부르는 `ledger` 스토어의 메서드 모양은 그대로 두고, 저장만 Supabase로 바꾼다.
+화면이 부르는 `ledger` 스토어의 메서드 모양은 그대로 두고, 저장만 Supabase로 바꾼다. 지출 항목, 카드, 달별 예산(`setBudget`)이 모두 대상이다.
 
 - `supabase/migrations/0004_ledger.sql`: 테이블 둘.
   - `ledger_entries`: id, spent_on(date), method(text), category(분류 7가지 check), amount(integer, 0 제외, 절댓값 10억 이하), memo(100자 이하), sms_key(text, 없으면 null), created_at, user_id.
+  - `ledger_budgets`: month(date, 그 달 1일), amount(integer, 1 이상). 한 달에 하나(`(user_id, month)` 유일). 적용은 앱이 `budgetFor`로 "정한 달부터 이어짐" 규칙을 계산하므로 달마다 행을 채우지 않는다.
   - `ledger_cards`: id, name(20자 이하), sender(숫자 3~15자리), samples(text 배열), created_at, user_id.
   - `(user_id, sms_key)`는 sms_key가 있을 때만 유일하게 한다. 같은 문자를 두 번 가져와도 DB가 막는다.
   - `(user_id, sender)`, `(user_id, name)`도 유일하다.

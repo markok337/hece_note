@@ -25,6 +25,11 @@
   --cell-dark-text: #0f172a;
   --today: #ea580c;
 
+  /* 가계부 표. 머리글 줄과 날짜 띠, 눌러 볼 수 있는 줄에 올린 색이다. 글자(--text, --muted)와 대비 6:1 이상이다. */
+  --table-head: #e2e8f0;
+  --table-band: #cbd5e1;
+  --row-hover: #e0efff;
+
   /* 냉장고 탭의 구역 바탕. 글자(--text, --muted)와 대비 6:1 이상이다. */
   --zone-fridge: #e0f2fe;
   --zone-freezer: #e0e7ff;

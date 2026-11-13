@@ -6,11 +6,12 @@
   import { viewport } from "../../core/viewport.svelte";
   import Modal from "../../ui/Modal.svelte";
   import CardManager from "./CardManager.svelte";
+  import DrillDown from "./DrillDown.svelte";
   import EntryForm from "./EntryForm.svelte";
   import EntryList from "./EntryList.svelte";
   import ImportPreview from "./ImportPreview.svelte";
   import StatsPanel from "./StatsPanel.svelte";
-  import { formatWon, groupByDate, monthStats, type LedgerEntry } from "./domain";
+  import { entriesBy, formatWon, groupByDate, monthStats, type LedgerEntry, type SliceKind } from "./domain";
   import { fetchMockSms, type MockSmsResult } from "./mock-sms";
   import { ledger } from "./store.svelte";
 
@@ -24,10 +25,14 @@
   let cardsOpen = $state(false);
   let importing = $state(false);
   let importResult = $state<MockSmsResult | null>(null);
+  // 통계에서 눌러 연 이력 창. 고른 분류(또는 구분)의 이름을 가진다.
+  let drill = $state<{ kind: SliceKind; label: string } | null>(null);
 
   const entries = $derived(ledger.entriesIn(month));
   const groups = $derived(groupByDate(entries));
   const stats = $derived(monthStats(Object.values(ledger.entries), month));
+  const budget = $derived(ledger.budgetFor(month));
+  const drillEntries = $derived(drill ? entriesBy(entries, drill.kind, drill.label) : []);
 
   function step(delta: number): void {
     month = shiftMonth(month, delta);
@@ -99,7 +104,14 @@
       <div class="main"><EntryList {groups} onedit={(entry) => (editing = entry)} /></div>
     {/if}
     {#if viewport.isWide || mode === "stats"}
-      <aside class="side" class:full={!viewport.isWide}><StatsPanel {stats} /></aside>
+      <aside class="side" class:full={!viewport.isWide}>
+        <StatsPanel
+          {stats}
+          {budget}
+          onbudget={(amount) => ledger.setBudget(month, amount)}
+          onpick={(kind, label) => (drill = { kind, label })}
+        />
+      </aside>
     {/if}
   </div>
 
@@ -108,6 +120,12 @@
       {#key editing}
         <EntryForm entry={editing === "new" ? undefined : editing} onclose={() => (editing = null)} />
       {/key}
+    </Modal>
+  {/if}
+
+  {#if drill}
+    <Modal fixed label="{drill.label} 이력" onclose={() => (drill = null)}>
+      <DrillDown kind={drill.kind} label={drill.label} monthLabel="{month.year}년 {month.month}월" entries={drillEntries} />
     </Modal>
   {/if}
 

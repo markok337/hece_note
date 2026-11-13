@@ -108,9 +108,57 @@ export function sortNewestFirst(entries: readonly LedgerEntry[]): LedgerEntry[] 
   );
 }
 
+/** "2026-11" 꼴의 달 식별값. 날짜 앞부분과 같아서 글자 비교로 달 순서를 알 수 있다. */
+export function monthKey(ref: MonthRef): string {
+  return toYmd(ref.year, ref.month, 1).slice(0, 7);
+}
+
 export function entriesInMonth(entries: readonly LedgerEntry[], ref: MonthRef): LedgerEntry[] {
-  const prefix = toYmd(ref.year, ref.month, 1).slice(0, 7);
-  return entries.filter((entry) => entry.spent_on.startsWith(prefix));
+  const key = monthKey(ref);
+  return entries.filter((entry) => entry.spent_on.startsWith(key));
+}
+
+/** 통계에서 눌러 이력을 볼 수 있는 묶음의 종류. */
+export type SliceKind = "category" | "method";
+
+/** 한 분류(또는 한 구분)에 속한 항목만 남긴다. */
+export function entriesBy(entries: readonly LedgerEntry[], kind: SliceKind, label: string): LedgerEntry[] {
+  return entries.filter((entry) => (kind === "category" ? entry.category : entry.method) === label);
+}
+
+/** 그 달에 적용되는 예산. 정한 달부터 다음에 바꿀 때까지 이어지고, 처음 정한 달보다 앞선 달은 null 이다. */
+export function budgetFor(budgets: Readonly<Record<string, number>>, ref: MonthRef): number | null {
+  const key = monthKey(ref);
+  const latest = Object.keys(budgets)
+    .filter((month) => month <= key)
+    .sort()
+    .at(-1);
+  return latest === undefined ? null : budgets[latest];
+}
+
+/** "1,000,000원" 같은 글자를 예산으로 바꾼다. 0 이하는 받지 않는다. */
+export function parseBudget(raw: string): Parsed<number> {
+  const text = raw.replace(/[,\s원]/g, "");
+  if (!/^\d+$/.test(text)) return { ok: false, reason: "예산은 숫자로 적는다." };
+  const value = Number(text);
+  if (value === 0) return { ok: false, reason: "예산은 0보다 커야 한다." };
+  if (value > AMOUNT_MAX) return { ok: false, reason: "예산이 너무 크다." };
+  return { ok: true, value };
+}
+
+export interface BudgetStatus {
+  budget: number;
+  spent: number;
+  /** 예산에서 지출을 뺀 값. 음수면 초과한 금액이다. */
+  remaining: number;
+  over: boolean;
+  /** 예산 대비 지출 비율 0~1. 초과해도 1에서 멈춘다. */
+  ratio: number;
+}
+
+export function budgetStatus(spent: number, budget: number): BudgetStatus {
+  const remaining = budget - spent;
+  return { budget, spent, remaining, over: remaining < 0, ratio: Math.min(Math.max(spent, 0) / budget, 1) };
 }
 
 export interface DayGroup {
