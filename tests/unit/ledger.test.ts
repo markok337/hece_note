@@ -3,16 +3,23 @@ import {
   CASH,
   budgetFor,
   budgetStatus,
+  categoryTrend,
   dayLabel,
+  defaultCategory,
+  emptyBudgetRules,
   entriesBy,
+  formatShortWon,
   formatWon,
   groupByDate,
+  monthKeyLabel,
   monthStats,
   parseAmount,
   parseBudget,
   parseSender,
   splitSamples,
   validateCardName,
+  validateCategoryName,
+  type BudgetRules,
   type Card,
   type LedgerEntry,
 } from "../../src/features/ledger/domain";
@@ -148,18 +155,40 @@ describe("표시", () => {
 });
 
 describe("예산", () => {
-  const budgets = { "2026-09": 1_000_000, "2026-11": 1_200_000 };
+  function rules(partial: Partial<BudgetRules>): BudgetRules {
+    return { ...emptyBudgetRules(), ...partial };
+  }
 
-  it("정한 달부터 다음에 바꿀 때까지 이어진다", () => {
-    expect(budgetFor(budgets, { year: 2026, month: 9 })).toBe(1_000_000);
-    expect(budgetFor(budgets, { year: 2026, month: 10 })).toBe(1_000_000);
-    expect(budgetFor(budgets, { year: 2026, month: 11 })).toBe(1_200_000);
-    expect(budgetFor(budgets, { year: 2027, month: 2 })).toBe(1_200_000);
+  it("정한 적이 없으면 예산이 없다", () => {
+    expect(budgetFor(emptyBudgetRules(), { year: 2026, month: 11 })).toBeNull();
   });
 
-  it("처음 정한 달보다 앞선 달에는 예산이 없다", () => {
-    expect(budgetFor(budgets, { year: 2026, month: 8 })).toBeNull();
-    expect(budgetFor({}, { year: 2026, month: 11 })).toBeNull();
+  it("기본값은 정하지 않은 모든 달에 적용된다", () => {
+    const r = rules({ base: 1_000_000 });
+    expect(budgetFor(r, { year: 2020, month: 1 })).toBe(1_000_000);
+    expect(budgetFor(r, { year: 2030, month: 12 })).toBe(1_000_000);
+  });
+
+  it("해당 월 이후 규칙은 그 달부터 다음 규칙까지 이어지고 이전 달은 기본값이다", () => {
+    const r = rules({ base: 1_000_000, from: { "2026-09": 1_100_000, "2026-11": 1_200_000 } });
+    expect(budgetFor(r, { year: 2026, month: 8 })).toBe(1_000_000);
+    expect(budgetFor(r, { year: 2026, month: 9 })).toBe(1_100_000);
+    expect(budgetFor(r, { year: 2026, month: 10 })).toBe(1_100_000);
+    expect(budgetFor(r, { year: 2026, month: 11 })).toBe(1_200_000);
+    expect(budgetFor(r, { year: 2027, month: 2 })).toBe(1_200_000);
+  });
+
+  it("해당 월만 규칙은 그 달에만 적용되고 앞뒤 달은 그대로다", () => {
+    const r = rules({ base: 1_000_000, from: { "2026-09": 1_100_000 }, only: { "2026-11": 700_000 } });
+    expect(budgetFor(r, { year: 2026, month: 10 })).toBe(1_100_000);
+    expect(budgetFor(r, { year: 2026, month: 11 })).toBe(700_000);
+    expect(budgetFor(r, { year: 2026, month: 12 })).toBe(1_100_000);
+  });
+
+  it("기본값이 없고 이후 규칙만 있으면 그 이전 달에는 예산이 없다", () => {
+    const r = rules({ from: { "2026-09": 1_100_000 } });
+    expect(budgetFor(r, { year: 2026, month: 8 })).toBeNull();
+    expect(budgetFor(r, { year: 2026, month: 9 })).toBe(1_100_000);
   });
 
   it("예산 글자는 쉼표와 원을 떼고 읽고, 숫자가 아니거나 0이면 받지 않는다", () => {
@@ -201,5 +230,92 @@ describe("entriesBy", () => {
 
   it("없는 이름이면 빈 목록이다", () => {
     expect(entriesBy(list, "category", "의료")).toEqual([]);
+  });
+});
+
+describe("분류", () => {
+  it("분류 이름은 비었거나 길거나 겹치면 받지 않는다", () => {
+    expect(validateCategoryName(" ", ["식비"])).not.toBeNull();
+    expect(validateCategoryName("가".repeat(11), [])).not.toBeNull();
+    expect(validateCategoryName("식비", ["식비"])).not.toBeNull();
+    expect(validateCategoryName(" 취미 ", ["식비"])).toBeNull();
+  });
+
+  it("새 항목의 기본 분류는 기타가 있으면 기타, 없으면 첫 분류다", () => {
+    expect(defaultCategory(["식비", "기타"])).toBe("기타");
+    expect(defaultCategory(["식비", "교통"])).toBe("식비");
+  });
+});
+
+describe("categoryTrend", () => {
+  const end = { year: 2026, month: 11 };
+
+  it("끝 달까지 6개월을 오래된 달부터 돌려준다", () => {
+    const points = categoryTrend([], end, null);
+    expect(points.map((p) => p.key)).toEqual(["2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11"]);
+    expect(points.map((p) => p.label)).toEqual(["6월", "7월", "8월", "9월", "10월", "11월"]);
+  });
+
+  it("연도가 바뀌어도 달을 맞게 센다", () => {
+    const points = categoryTrend([], { year: 2026, month: 2 }, null);
+    expect(points.map((p) => p.key)).toEqual(["2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02"]);
+  });
+
+  it("고른 분류만 달별로 합치고 전월 대비를 낸다", () => {
+    const points = categoryTrend(
+      [
+        entry("a", "2026-10-05", 4000, { category: "식비" }),
+        entry("b", "2026-11-02", 10000, { category: "식비" }),
+        entry("c", "2026-11-03", 99999, { category: "교통" }),
+      ],
+      end,
+      "식비",
+    );
+    const last = points.at(-1)!;
+    const prev = points.at(-2)!;
+    expect([prev.total, last.total, last.delta]).toEqual([4000, 10000, 6000]);
+  });
+
+  it("분류를 안 고르면 전체를 합친다", () => {
+    const points = categoryTrend(
+      [entry("a", "2026-11-02", 1000, { category: "식비" }), entry("b", "2026-11-03", 2000, { category: "교통" })],
+      end,
+      null,
+    );
+    expect(points.at(-1)!.total).toBe(3000);
+  });
+
+  it("두 달 모두 기록이 없으면 전월 대비는 null 이다", () => {
+    expect(categoryTrend([], end, null).every((p) => p.delta === null)).toBe(true);
+  });
+
+  it("그래프 첫 달의 전월 대비도 그래프 밖의 지난달과 비교해 낸다", () => {
+    const points = categoryTrend([entry("a", "2026-05-10", 3000), entry("b", "2026-06-10", 5000)], end, null);
+    expect(points[0].delta).toBe(2000);
+  });
+
+  it("취소(음수)는 달 합계에서 뺀다", () => {
+    const points = categoryTrend([entry("a", "2026-11-01", 5000), entry("b", "2026-11-02", -2000)], end, null);
+    expect(points.at(-1)!.total).toBe(3000);
+  });
+});
+
+describe("짧은 금액 표기", () => {
+  it.each([
+    [5600, "5,600"],
+    [10000, "1만"],
+    [56000, "5.6만"],
+    [150000, "15만"],
+    [1234000, "123.4만"],
+    [100000000, "1억"],
+    [-56000, "-5.6만"],
+    [0, "0"],
+  ])("%d 는 %s", (amount, expected) => {
+    expect(formatShortWon(amount)).toBe(expected);
+  });
+
+  it("달 식별값을 읽기 좋은 글자로 바꾼다", () => {
+    expect(monthKeyLabel("2026-11")).toBe("2026년 11월");
+    expect(monthKeyLabel("2026-01")).toBe("2026년 1월");
   });
 });

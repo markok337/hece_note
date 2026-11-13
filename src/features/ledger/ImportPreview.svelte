@@ -2,7 +2,7 @@
   // 문자에서 읽은 결제를 항목으로 만들기 전에 보여 주는 확인 창의 내용. 고르고 분류를 정한 것만 추가한다.
   import { untrack } from "svelte";
   import { notice } from "../../core/notice.svelte";
-  import { CATEGORIES, formatWon, type Category, type SmsCandidate, type SmsUnparsed } from "./domain";
+  import { defaultCategory, formatWon, type Category, type SmsCandidate, type SmsUnparsed } from "./domain";
   import type { MockSmsResult } from "./mock-sms";
   import { ledger } from "./store.svelte";
 
@@ -21,7 +21,15 @@
 
   // 창이 열릴 때 받은 결과를 한 번만 읽는다. 열려 있는 동안 result 는 바뀌지 않는다.
   const initial = untrack(() => result);
-  let rows = $state<Row[]>(initial.candidates.map((candidate) => ({ candidate, checked: true, category: candidate.category })));
+  // 문자에서 짐작한 분류가 설정에서 지워졌으면 기본 분류로 시작한다.
+  let rows = $state<Row[]>(
+    initial.candidates.map((candidate) => ({
+      candidate,
+      checked: true,
+      category: ledger.categories.includes(candidate.category) ? candidate.category : defaultCategory(ledger.categories),
+    })),
+  );
+  const categories = ledger.categories;
   const unparsed: SmsUnparsed[] = initial.unparsed;
   const checkedCount = $derived(rows.filter((row) => row.checked).length);
 
@@ -60,7 +68,7 @@
           <span class="meta">{row.candidate.spent_on} · {row.candidate.method}</span>
         </div>
         <select bind:value={row.category} aria-label="{row.candidate.merchant} 분류">
-          {#each CATEGORIES as option (option)}
+          {#each categories as option (option)}
             <option value={option}>{option}</option>
           {/each}
         </select>

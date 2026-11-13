@@ -5,21 +5,28 @@
   import { session } from "../../core/session.svelte";
   import { viewport } from "../../core/viewport.svelte";
   import Modal from "../../ui/Modal.svelte";
+  import BudgetStrip from "./BudgetStrip.svelte";
   import CardManager from "./CardManager.svelte";
+  import CategoryTrend from "./CategoryTrend.svelte";
   import DrillDown from "./DrillDown.svelte";
   import EntryForm from "./EntryForm.svelte";
   import EntryList from "./EntryList.svelte";
   import ImportPreview from "./ImportPreview.svelte";
   import StatsPanel from "./StatsPanel.svelte";
-  import { entriesBy, formatWon, groupByDate, monthStats, type LedgerEntry, type SliceKind } from "./domain";
+  import { entriesBy, groupByDate, monthStats, type LedgerEntry, type SliceKind } from "./domain";
   import { fetchMockSms, type MockSmsResult } from "./mock-sms";
   import { ledger } from "./store.svelte";
 
   type Mode = "list" | "stats";
+  type StatsView = "month" | "trend";
 
   let month = $state<MonthRef>({ year: parseYmd(clock.today).year, month: parseYmd(clock.today).month });
   // 좁은 화면은 목록과 통계를 번갈아 보고, 넓은 화면은 둘을 나란히 둔다.
   let mode = $state<Mode>("list");
+  // 통계 안에서 월 통계와 분류 추이를 오간다. 어느 화면 크기에서나 같다.
+  let statsView = $state<StatsView>("month");
+  // 분류 추이에서 고른 분류. null 은 전체.
+  let trendCategory = $state<string | null>(null);
   // 지출 창: "new" 는 새로 적기, 항목은 고치기, null 은 닫힘.
   let editing = $state<LedgerEntry | "new" | null>(null);
   let cardsOpen = $state(false);
@@ -30,9 +37,12 @@
 
   const entries = $derived(ledger.entriesIn(month));
   const groups = $derived(groupByDate(entries));
-  const stats = $derived(monthStats(Object.values(ledger.entries), month));
+  const stats = $derived(monthStats(allEntries, month));
   const budget = $derived(ledger.budgetFor(month));
   const drillEntries = $derived(drill ? entriesBy(entries, drill.kind, drill.label) : []);
+  const allEntries = $derived(Object.values(ledger.entries));
+  // 설정에서 지운 분류라도 이력이 있으면 추이에서 고를 수 있다.
+  const trendChoices = $derived(ledger.categoryChoices(...allEntries.map((entry) => entry.category)));
 
   function step(delta: number): void {
     month = shiftMonth(month, delta);
@@ -91,9 +101,6 @@
         <button type="button" class="mode" class:active={mode === "list"} aria-pressed={mode === "list"} onclick={() => (mode = "list")}>목록</button>
         <button type="button" class="mode" class:active={mode === "stats"} aria-pressed={mode === "stats"} onclick={() => (mode = "stats")}>통계</button>
       </div>
-      {#if mode === "list"}
-        <span class="sum">합계 <strong>{formatWon(stats.total)}</strong></span>
-      {/if}
     {/if}
     <span class="spacer"></span>
     <button type="button" class="add" onclick={() => (editing = "new")}>+ 지출 추가</button>
@@ -101,16 +108,28 @@
 
   <div class="body">
     {#if viewport.isWide || mode === "list"}
-      <div class="main"><EntryList {groups} onedit={(entry) => (editing = entry)} /></div>
+      <div class="main">
+        <BudgetStrip spent={stats.total} {budget} />
+        <EntryList {groups} onedit={(entry) => (editing = entry)} />
+      </div>
     {/if}
     {#if viewport.isWide || mode === "stats"}
       <aside class="side" class:full={!viewport.isWide}>
-        <StatsPanel
-          {stats}
-          {budget}
-          onbudget={(amount) => ledger.setBudget(month, amount)}
-          onpick={(kind, label) => (drill = { kind, label })}
-        />
+        <div class="modes sub-modes" role="group" aria-label="통계 종류">
+          <button type="button" class="mode" class:active={statsView === "month"} aria-pressed={statsView === "month"} onclick={() => (statsView = "month")}>월 통계</button>
+          <button type="button" class="mode" class:active={statsView === "trend"} aria-pressed={statsView === "trend"} onclick={() => (statsView = "trend")}>분류 추이</button>
+        </div>
+        {#if statsView === "month"}
+          <StatsPanel {stats} {budget} onpick={(kind, label) => (drill = { kind, label })} />
+        {:else}
+          <CategoryTrend
+            entries={allEntries}
+            end={month}
+            categories={trendChoices}
+            category={trendCategory}
+            onselect={(category) => (trendCategory = category)}
+          />
+        {/if}
       </aside>
     {/if}
   </div>
@@ -156,6 +175,7 @@
 
   .bar { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .modes { display: flex; gap: 4px; }
+  .sub-modes { flex-shrink: 0; margin-bottom: 6px; }
   .mode {
     height: 32px;
     padding: 0 14px;
@@ -167,8 +187,6 @@
     border-radius: 16px;
   }
   .mode.active { color: var(--accent-text); background: var(--accent); border-color: var(--accent); font-weight: 700; }
-  .sum { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
-  .sum strong { color: var(--text); font-variant-numeric: tabular-nums; }
   .add { height: 34px; padding: 0 14px; font-size: 0.9rem; white-space: nowrap; }
 
   .body { flex: 1; display: flex; min-height: 0; }

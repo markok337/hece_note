@@ -5,10 +5,11 @@ import { parseYmd, shiftMonth, toYmd, weekday, type MonthRef } from "../../core/
 /** 구분의 기본값. 나머지 구분은 사용자가 등록한 카드 이름이다. */
 export const CASH = "현금";
 
-export const CATEGORIES = ["식비", "교통", "쇼핑", "생활", "의료", "문화", "기타"] as const;
-export type Category = (typeof CATEGORIES)[number];
-export const DEFAULT_CATEGORY: Category = "기타";
+/** 분류는 사용자가 설정 탭에서 더하고 뺀다. 처음에는 이 목록이다. */
+export const DEFAULT_CATEGORIES: readonly string[] = ["식비", "교통", "쇼핑", "생활", "의료", "문화", "기타"];
+export type Category = string;
 
+export const CATEGORY_NAME_MAX = 10;
 export const MEMO_MAX = 100;
 export const CARD_NAME_MAX = 20;
 export const AMOUNT_MAX = 1_000_000_000;
@@ -76,6 +77,19 @@ export function validateMemo(raw: string): string | null {
   return raw.trim().length > MEMO_MAX ? `메모는 ${MEMO_MAX}자까지 쓴다.` : null;
 }
 
+/** 새 항목의 분류 기본값. "기타"가 있으면 그것, 없으면 첫 분류. */
+export function defaultCategory(categories: readonly string[]): Category {
+  return categories.includes("기타") ? "기타" : (categories[0] ?? "기타");
+}
+
+export function validateCategoryName(raw: string, existing: readonly string[]): string | null {
+  const name = raw.trim();
+  if (name === "") return "분류 이름을 적는다.";
+  if (name.length > CATEGORY_NAME_MAX) return `분류 이름은 ${CATEGORY_NAME_MAX}자까지 쓴다.`;
+  if (existing.includes(name)) return "이미 있는 분류다.";
+  return null;
+}
+
 export function validateCardName(raw: string, existing: readonly Card[]): string | null {
   const name = raw.trim();
   if (name === "") return "카드 이름을 적는다.";
@@ -113,6 +127,11 @@ export function monthKey(ref: MonthRef): string {
   return toYmd(ref.year, ref.month, 1).slice(0, 7);
 }
 
+/** "2026-11" 을 "2026년 11월" 로. */
+export function monthKeyLabel(key: string): string {
+  return `${key.slice(0, 4)}년 ${Number(key.slice(5))}월`;
+}
+
 export function entriesInMonth(entries: readonly LedgerEntry[], ref: MonthRef): LedgerEntry[] {
   const key = monthKey(ref);
   return entries.filter((entry) => entry.spent_on.startsWith(key));
@@ -126,14 +145,33 @@ export function entriesBy(entries: readonly LedgerEntry[], kind: SliceKind, labe
   return entries.filter((entry) => (kind === "category" ? entry.category : entry.method) === label);
 }
 
-/** 그 달에 적용되는 예산. 정한 달부터 다음에 바꿀 때까지 이어지고, 처음 정한 달보다 앞선 달은 null 이다. */
-export function budgetFor(budgets: Readonly<Record<string, number>>, ref: MonthRef): number | null {
+/**
+ * 예산 규칙. 한 달의 예산은 다음 순서로 정해진다.
+ * 1) 그 달만(only) 정한 값, 2) 그 달 이전에 "이 달부터"(from) 정한 것 중 가장 최근 값, 3) 기본값(base).
+ */
+export interface BudgetRules {
+  base: number | null;
+  /** "이 달부터 기본값 변경". 키는 "2026-11". 다음 변경까지 이어진다. */
+  from: Record<string, number>;
+  /** "이 달만 변경". 키는 "2026-11". */
+  only: Record<string, number>;
+}
+
+export type BudgetScope = "base" | "from" | "only";
+
+export function emptyBudgetRules(): BudgetRules {
+  return { base: null, from: {}, only: {} };
+}
+
+/** 그 달에 적용되는 예산. 정한 적이 없으면 null. */
+export function budgetFor(rules: Readonly<BudgetRules>, ref: MonthRef): number | null {
   const key = monthKey(ref);
-  const latest = Object.keys(budgets)
+  if (key in rules.only) return rules.only[key];
+  const latest = Object.keys(rules.from)
     .filter((month) => month <= key)
     .sort()
     .at(-1);
-  return latest === undefined ? null : budgets[latest];
+  return latest === undefined ? rules.base : rules.from[latest];
 }
 
 /** "1,000,000원" 같은 글자를 예산으로 바꾼다. 0 이하는 받지 않는다. */
@@ -231,4 +269,52 @@ export function monthStats(all: readonly LedgerEntry[], ref: MonthRef): MonthSta
     byCategory: sliceBy(entries, (entry) => entry.category),
     byMethod: sliceBy(entries, (entry) => entry.method),
   };
+}
+
+/** 추이 그래프가 보여 주는 개월 수. */
+export const TREND_MONTHS = 6;
+
+export interface TrendPoint {
+  key: string;
+  /** "11월" 꼴의 달 이름. */
+  label: string;
+  total: number;
+  /** 바로 앞 달과의 차이. 두 달 모두 0이면 null. */
+  delta: number | null;
+}
+
+/** 끝 달까지 최근 TREND_MONTHS 개월의 합계. category 가 null 이면 전체 분류다. 오래된 달이 앞이다. */
+export function categoryTrend(
+  entries: readonly LedgerEntry[],
+  end: MonthRef,
+  category: string | null,
+  months = TREND_MONTHS,
+): TrendPoint[] {
+  const scoped = category === null ? entries : entries.filter((entry) => entry.category === category);
+  // 첫 달의 전월 대비를 구하려고 한 달 더 센다.
+  const refs = Array.from({ length: months + 1 }, (_, i) => shiftMonth(end, i - months));
+  const totals = refs.map((ref) => entriesInMonth(scoped, ref).reduce((sum, entry) => sum + entry.amount, 0));
+  return refs.slice(1).map((ref, i) => {
+    const total = totals[i + 1];
+    const previous = totals[i];
+    return {
+      key: monthKey(ref),
+      label: `${ref.month}월`,
+      total,
+      delta: total === 0 && previous === 0 ? null : total - previous,
+    };
+  });
+}
+
+function trimDecimal(value: number): string {
+  return Number(value.toFixed(1)).toString();
+}
+
+/** 그래프 위 글자용 짧은 금액. 5600 → "5,600", 56000 → "5.6만", 1234000 → "123.4만". */
+export function formatShortWon(amount: number): string {
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? "-" : "";
+  if (abs >= 100_000_000) return `${sign}${trimDecimal(abs / 100_000_000)}억`;
+  if (abs >= 10_000) return `${sign}${trimDecimal(abs / 10_000)}만`;
+  return amount.toLocaleString("ko-KR");
 }

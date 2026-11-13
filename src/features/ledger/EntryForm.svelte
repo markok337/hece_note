@@ -3,7 +3,8 @@
   import { untrack } from "svelte";
   import { clock } from "../../core/clock.svelte";
   import { notice } from "../../core/notice.svelte";
-  import { CASH, CATEGORIES, DEFAULT_CATEGORY, MEMO_MAX, parseAmount, validateMemo, type LedgerEntry } from "./domain";
+  import ConfirmButton from "../../ui/ConfirmButton.svelte";
+  import { CASH, MEMO_MAX, defaultCategory, parseAmount, validateMemo, type LedgerEntry } from "./domain";
   import { ledger } from "./store.svelte";
 
   interface Props {
@@ -13,23 +14,17 @@
 
   const { entry, onclose }: Props = $props();
 
-  /** 삭제 버튼을 한 번 누른 뒤 이 시간 안에 한 번 더 눌러야 지워진다. */
-  const CONFIRM_MS = 3000;
-
   // 입력칸은 창이 열릴 때의 값으로 시작한다. 창이 열려 있는 동안 entry 가 바뀌지 않으므로(부모가 {#key} 로 새로 연다) 한 번만 읽는다.
   const initial = untrack(() => entry);
 
   let spentOn = $state(initial?.spent_on ?? clock.today);
   let method = $state(initial?.method ?? CASH);
-  let category = $state(initial?.category ?? DEFAULT_CATEGORY);
+  let category = $state(initial?.category ?? defaultCategory(ledger.categories));
   let amountText = $state(initial ? String(initial.amount) : "");
   let memo = $state(initial?.memo ?? "");
-  let confirming = $state(false);
-  let confirmTimer: ReturnType<typeof setTimeout> | undefined;
 
-  $effect(() => () => clearTimeout(confirmTimer));
-
-  // 지워진 카드로 적었던 항목을 고칠 때도 그 이름이 선택지에 남는다.
+  // 설정에서 지워진 분류나 카드로 적었던 항목을 고칠 때도 그 이름이 선택지에 남는다.
+  const categories = $derived(ledger.categoryChoices(...(initial ? [initial.category] : [])));
   const methods = $derived([...new Set([CASH, ...ledger.cardList().map((card) => card.name), ...(entry ? [entry.method] : [])])]);
 
   async function save(event: SubmitEvent): Promise<void> {
@@ -45,16 +40,8 @@
     if (saved) onclose();
   }
 
-  /** 삭제는 두 번 눌러야 한다. 첫 번째는 버튼을 빨간 "삭제 확인"으로 바꾸기만 한다. */
-  async function askRemove(): Promise<void> {
-    clearTimeout(confirmTimer);
-    if (!entry) return;
-    if (confirming) {
-      if (await ledger.removeEntry(entry.id)) onclose();
-      return;
-    }
-    confirming = true;
-    confirmTimer = setTimeout(() => (confirming = false), CONFIRM_MS);
+  async function remove(): Promise<void> {
+    if (entry && (await ledger.removeEntry(entry.id))) onclose();
   }
 </script>
 
@@ -76,7 +63,7 @@
   <label>
     <span>분류</span>
     <select bind:value={category}>
-      {#each CATEGORIES as option (option)}
+      {#each categories as option (option)}
         <option value={option}>{option}</option>
       {/each}
     </select>
@@ -92,9 +79,7 @@
 
   <div class="actions">
     {#if entry}
-      <button type="button" class="sub del" class:confirm={confirming} onclick={askRemove} onblur={() => (confirming = false)}>
-        {confirming ? "삭제 확인" : "삭제"}
-      </button>
+      <ConfirmButton name="이 지출" label="삭제" confirmLabel="삭제 확인" width="92px" tall onconfirm={remove} />
     {/if}
     <span class="spacer"></span>
     <button type="submit">저장</button>
@@ -117,7 +102,4 @@
   }
   .actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
   .spacer { flex: 1; }
-  /* 확인 상태에서도 폭이 같아 줄이 흔들리지 않는다. */
-  .del { width: 92px; }
-  .del.confirm { color: var(--accent-text); background: var(--danger); border-color: var(--danger); font-weight: 700; }
 </style>

@@ -1,21 +1,15 @@
 <script lang="ts">
   // 카드 이름과 결제 문자를 보내는 번호를 등록하는 창의 내용. 문자 불러오기는 여기 등록한 번호의 문자만 읽는다.
   import { notice } from "../../core/notice.svelte";
-  import { CARD_NAME_MAX, parseSender, splitSamples, validateCardName, type Card } from "./domain";
+  import ConfirmButton from "../../ui/ConfirmButton.svelte";
+  import { CARD_NAME_MAX, parseSender, splitSamples, validateCardName } from "./domain";
   import { ledger } from "./store.svelte";
-
-  /** 삭제 버튼을 한 번 누른 뒤 이 시간 안에 한 번 더 눌러야 지워진다. */
-  const CONFIRM_MS = 3000;
 
   const cards = $derived(ledger.cardList());
 
   let name = $state("");
   let sender = $state("");
   let sampleText = $state("");
-  let confirmingId = $state<string | null>(null);
-  let confirmTimer: ReturnType<typeof setTimeout> | undefined;
-
-  $effect(() => () => clearTimeout(confirmTimer));
 
   async function add(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -31,17 +25,6 @@
     sampleText = "";
   }
 
-  /** 삭제는 두 번 눌러야 한다. 첫 번째는 버튼을 빨간 "삭제"로 바꾸기만 한다. */
-  function askRemove(card: Card): void {
-    clearTimeout(confirmTimer);
-    if (confirmingId === card.id) {
-      confirmingId = null;
-      void ledger.removeCard(card.id);
-      return;
-    }
-    confirmingId = card.id;
-    confirmTimer = setTimeout(() => (confirmingId = null), CONFIRM_MS);
-  }
 </script>
 
 <section class="cards">
@@ -71,16 +54,7 @@
           <span class="name" title={card.name}>{card.name}</span>
           <span class="sender">{card.sender}</span>
           <span class="count">견본 {card.samples.length}개</span>
-          <button
-            type="button"
-            class="sub del"
-            class:confirm={confirmingId === card.id}
-            aria-label={confirmingId === card.id ? `${card.name} 삭제 확인` : `${card.name} 삭제`}
-            onclick={() => askRemove(card)}
-            onblur={() => confirmingId === card.id && (confirmingId = null)}
-          >
-            {confirmingId === card.id ? "삭제" : "✕"}
-          </button>
+          <ConfirmButton name={card.name} onconfirm={() => ledger.removeCard(card.id)} />
         </li>
       {/each}
     </ul>
@@ -114,7 +88,5 @@
   li { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); }
   .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
   .sender, .count { flex-shrink: 0; font-size: 0.75rem; color: var(--muted); }
-  .del { flex-shrink: 0; width: 42px; height: 30px; padding: 0; font-size: 0.85rem; line-height: 1; }
-  .del.confirm { color: var(--accent-text); background: var(--danger); border-color: var(--danger); font-weight: 700; }
   .empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
 </style>

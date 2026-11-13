@@ -76,3 +76,22 @@ button:disabled, button.sub:disabled { background: #e2e8f0; color: var(--muted);
 
 .msg { margin-top: 8px; font-size: 0.85rem; min-height: 1.2em; }
 .msg.err { color: var(--danger); }
+
+/* 표 한 장: 바깥 테두리 하나, 띠 제목, 줄 사이의 가는 선. 가계부의 통계와 설정 화면이 같이 쓴다. */
+.sheet { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+.band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+  margin: 0;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--table-band);
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+}
+.sheet > .band:first-child { border-top: 0; }

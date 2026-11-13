@@ -1,8 +1,15 @@
-// 화면이 구독하는 가계부 상태(지출 항목 + 카드). 지금은 메모리에만 있어 새로고침하면 사라진다(시안 단계).
+// 화면이 구독하는 가계부 상태(지출 항목 + 카드 + 설정). 지금은 메모리에만 있어 새로고침하면 사라진다(시안 단계).
 // DB 연동 단계에서 이 파일의 저장 부분만 repo 호출로 바꾼다. 화면이 부르는 메서드의 모양은 그대로 둔다.
 
-import type { Card, LedgerEntry } from "./domain";
-import { budgetFor, entriesInMonth, monthKey, sortNewestFirst } from "./domain";
+import type { BudgetRules, BudgetScope, Card, LedgerEntry } from "./domain";
+import {
+  DEFAULT_CATEGORIES,
+  budgetFor,
+  emptyBudgetRules,
+  entriesInMonth,
+  monthKey,
+  sortNewestFirst,
+} from "./domain";
 import type { MonthRef } from "../../core/dates";
 
 export type NewEntry = Omit<LedgerEntry, "id" | "created_at" | "sms_key"> & { sms_key?: string | null };
@@ -11,8 +18,10 @@ export type NewCard = Pick<Card, "name" | "sender" | "samples">;
 class LedgerStore {
   entries = $state<Record<string, LedgerEntry>>({});
   cards = $state<Record<string, Card>>({});
-  /** 달별 예산. 키는 "2026-11". 정한 달부터 다음에 바꿀 때까지 이어진다(domain.budgetFor). */
-  budgets = $state<Record<string, number>>({});
+  /** 설정 탭에서 관리하는 분류 목록. 새 항목의 선택지이고, 추가한 순서를 지킨다. */
+  categories = $state<string[]>([...DEFAULT_CATEGORIES]);
+  /** 예산 규칙(기본값, 이 달부터, 이 달만). 한 달의 예산은 domain.budgetFor 가 정한다. */
+  budgetRules = $state<BudgetRules>(emptyBudgetRules());
   /** 가져오지 않기로 한 문자(읽지 못한 안내문 등)의 식별값. 다시 보여 주지 않는다. */
   dismissed = $state<string[]>([]);
   loaded = $state(false);
@@ -27,19 +36,9 @@ class LedgerStore {
     this.loaded = false;
     this.entries = {};
     this.cards = {};
-    this.budgets = {};
+    this.categories = [...DEFAULT_CATEGORIES];
+    this.budgetRules = emptyBudgetRules();
     this.dismissed = [];
-  }
-
-  /** 그 달에 적용되는 예산. 정한 적이 없으면 null. */
-  budgetFor(ref: MonthRef): number | null {
-    return budgetFor(this.budgets, ref);
-  }
-
-  /** 그 달부터 적용할 예산을 정한다. 값이 올바른지는 부르는 쪽이 확인한다. */
-  async setBudget(ref: MonthRef, amount: number): Promise<boolean> {
-    this.budgets[monthKey(ref)] = amount;
-    return true;
   }
 
   /** 한 달의 항목. 최근 것이 먼저. */
@@ -56,6 +55,19 @@ class LedgerStore {
     const keys = new Set(this.dismissed);
     for (const entry of Object.values(this.entries)) if (entry.sms_key) keys.add(entry.sms_key);
     return keys;
+  }
+
+  /**
+   * 분류 선택지. 설정의 분류에 더해, 지워진 분류로 적은 이력이 있으면 그 이름도 넣는다(이력은 지우지 않는다).
+   * extra 는 지금 고치는 항목의 분류처럼 반드시 포함할 이름이다.
+   */
+  categoryChoices(...extra: string[]): string[] {
+    return [...new Set([...this.categories, ...extra])];
+  }
+
+  /** 그 분류로 적은 항목 수. 설정에서 지우기 전에 보여 준다. */
+  categoryUsage(name: string): number {
+    return Object.values(this.entries).filter((entry) => entry.category === name).length;
   }
 
   async addEntry(input: NewEntry): Promise<boolean> {
@@ -91,6 +103,42 @@ class LedgerStore {
   async removeCard(id: string): Promise<boolean> {
     if (!(id in this.cards)) return false;
     delete this.cards[id];
+    return true;
+  }
+
+  /** 분류를 더한다. 이름이 올바른지(비었는지, 겹치는지)는 부르는 쪽이 확인한다. */
+  async addCategory(name: string): Promise<boolean> {
+    if (this.categories.includes(name)) return false;
+    this.categories.push(name);
+    return true;
+  }
+
+  /** 분류를 선택지에서 뺀다. 그 분류로 적은 이력은 이름 그대로 남는다. 마지막 하나는 지울 수 없다. */
+  async removeCategory(name: string): Promise<boolean> {
+    if (this.categories.length <= 1 || !this.categories.includes(name)) return false;
+    this.categories = this.categories.filter((category) => category !== name);
+    return true;
+  }
+
+  /** 그 달에 적용되는 예산. 정한 적이 없으면 null. */
+  budgetFor(ref: MonthRef): number | null {
+    return budgetFor(this.budgetRules, ref);
+  }
+
+  /**
+   * 예산을 정한다. base 는 기본값, from 은 ref 의 달부터 다음 변경까지, only 는 ref 의 그 달만이다.
+   * 값이 올바른지는 부르는 쪽이 확인한다.
+   */
+  async setBudget(scope: BudgetScope, amount: number, ref: MonthRef): Promise<boolean> {
+    if (scope === "base") this.budgetRules.base = amount;
+    else this.budgetRules[scope][monthKey(ref)] = amount;
+    return true;
+  }
+
+  /** "이 달부터" 또는 "이 달만" 규칙 하나를 지운다. */
+  async removeBudgetRule(scope: Exclude<BudgetScope, "base">, key: string): Promise<boolean> {
+    if (!(key in this.budgetRules[scope])) return false;
+    delete this.budgetRules[scope][key];
     return true;
   }
 
