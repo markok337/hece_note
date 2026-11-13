@@ -37,7 +37,17 @@ export interface LedgerEntry {
   memo: string;
   /** 문자에서 가져온 항목의 문자 식별값. 같은 문자를 두 번 가져오지 않는 데 쓴다. 직접 적은 항목은 null. */
   sms_key: string | null;
+  /** 이 달의 카드 실적으로 세는 지출이면 true. */
+  perf: boolean;
   created_at: string;
+}
+
+/** 한 달에 쌓아야 하는 실적 개수. */
+export const PERF_GOAL = 10;
+
+/** 그 달에 실적으로 표시한 지출의 개수. */
+export function perfCount(entries: readonly LedgerEntry[], ref: MonthRef): number {
+  return entriesInMonth(entries, ref).filter((entry) => entry.perf).length;
 }
 
 /** 문자함에 쌓아 두는 기간(일). 이보다 오래된 문자는 지운다. */

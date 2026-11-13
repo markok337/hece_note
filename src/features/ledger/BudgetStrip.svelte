@@ -1,15 +1,17 @@
 <script lang="ts">
   // 목록 맨 위 요약. 첫 줄에 예산·합계·차액을 한꺼번에 보이고, 아래에는 사용률 막대만 둔다.
-  import { budgetStatus, formatWon } from "./domain";
+  import { PERF_GOAL, budgetStatus, formatWon } from "./domain";
 
   interface Props {
     /** 이 달 지출 합계. */
     spent: number;
     /** 이 달에 적용되는 예산. 정한 적이 없으면 null. */
     budget: number | null;
+    /** 이 달에 실적으로 표시한 지출 개수. */
+    perf: number;
   }
 
-  const { spent, budget }: Props = $props();
+  const { spent, budget, perf }: Props = $props();
 
   const status = $derived(budget === null ? null : budgetStatus(spent, budget));
   const meterLabel = $derived(status ? `예산의 ${Math.round((Math.max(spent, 0) / status.budget) * 100)}% 사용` : "예산 없음");
@@ -22,8 +24,11 @@
     <!-- 초과는 색만으로 알리지 않는다. 차액이 음수라 금액 앞에 - 가 붙는다. -->
     <span class="item" class:over={status?.over}><em>차액</em><strong>{status ? formatWon(status.remaining) : "-"}</strong></span>
   </div>
-  <div class="track" role="img" aria-label={meterLabel}>
-    <span class="fill" class:over={status?.over} style:width="{(status?.ratio ?? 0) * 100}%"></span>
+  <div class="meter">
+    <div class="track" role="img" aria-label={meterLabel}>
+      <span class="fill" class:over={status?.over} style:width="{(status?.ratio ?? 0) * 100}%"></span>
+    </div>
+    <span class="perf" class:done={perf >= PERF_GOAL}>실적 {perf}/{PERF_GOAL}</span>
   </div>
 </div>
 
@@ -44,7 +49,10 @@
   strong { overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
   .over strong { color: var(--danger); }
 
-  .track { height: 6px; margin-top: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .meter { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+  .perf { flex-shrink: 0; font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .perf.done { color: var(--accent-strong); font-weight: 700; }
+  .track { flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
   .fill { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
   .fill.over { background: var(--danger); }
 </style>

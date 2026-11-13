@@ -44,9 +44,9 @@
               <td class="category">{entry.category}</td>
               <td class="memo" title={entry.memo}>
                 {#if onedit}
-                  <button type="button">{entry.memo || "-"}</button>
+                  <button type="button">{#if entry.perf}<b class="perf" title="실적">✓</b>{/if}{entry.memo || "-"}</button>
                 {:else}
-                  {entry.memo || "-"}
+                  {#if entry.perf}<b class="perf" title="실적">✓</b>{/if}{entry.memo || "-"}
                 {/if}
               </td>
               <td class="method" title={entry.method}>{entry.method}</td>
@@ -73,7 +73,7 @@
     border-radius: 6px;
   }
   table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }
-  .c-category { width: 44px; }
+  .c-category { width: 62px; }
   .c-method { width: 68px; }
   .c-amount { width: 84px; }
 
@@ -115,6 +115,8 @@
   .category { font-size: 0.75rem; font-weight: 700; color: var(--accent-strong); }
   .method { font-size: 0.75rem; color: var(--muted); }
   .amount { font-weight: 700; }
+  /* 실적으로 센 지출은 메모 앞에 체크 표시가 붙는다. */
+  .perf { margin-right: 3px; color: var(--accent-strong); }
   .amount.refund { color: var(--ok); }
 
   .clickable { cursor: pointer; }

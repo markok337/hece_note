@@ -19,6 +19,7 @@ import {
   plainBody,
   parseBudget,
   parseSender,
+  perfCount,
   SAMPLES_MAX,
   sampleShape,
   smsCutoff,
@@ -40,10 +41,31 @@ function entry(id: string, spent_on: string, amount: number, extra: Partial<Ledg
     amount,
     memo: "",
     sms_key: null,
+    perf: false,
     created_at: "2026-11-01T00:00:00Z",
     ...extra,
   };
 }
+
+describe("perfCount", () => {
+  const nov = { year: 2026, month: 11 };
+
+  it("그 달에 실적으로 표시한 지출만 센다", () => {
+    const entries = [
+      entry("a", "2026-11-02", 1000, { perf: true }),
+      entry("b", "2026-11-30", 1000, { perf: true }),
+      entry("c", "2026-11-05", 1000),
+      entry("d", "2026-10-31", 1000, { perf: true }),
+      entry("e", "2026-12-01", 1000, { perf: true }),
+    ];
+    expect(perfCount(entries, nov)).toBe(2);
+  });
+
+  it("표시한 지출이 없으면 0이다", () => {
+    expect(perfCount([entry("a", "2026-11-02", 1000)], nov)).toBe(0);
+    expect(perfCount([], nov)).toBe(0);
+  });
+});
 
 function card(name: string, sender: string): Card {
   return { id: name, name, sender, samples: [], created_at: "2026-11-01T00:00:00Z" };

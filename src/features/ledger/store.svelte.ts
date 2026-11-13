@@ -44,7 +44,7 @@ import { WriteQueue } from "../../core/write-queue";
 
 const NOT_LOADED_MESSAGE = "아직 불러오지 못했다. 새로고침 후 다시 시도한다.";
 
-export type NewEntry = Omit<LedgerEntry, "id" | "created_at" | "sms_key"> & { sms_key?: string | null };
+export type NewEntry = Omit<LedgerEntry, "id" | "created_at" | "sms_key" | "perf"> & { sms_key?: string | null; perf?: boolean };
 export type NewCard = Pick<Card, "name" | "sender" | "samples">;
 /** 폰에서 읽어 온 문자 한 통. 처리 상태는 문자함이 정한다. */
 export type NewSms = Omit<SmsRow, "id" | "status">;
@@ -224,7 +224,7 @@ class LedgerStore {
   }
 
   #newEntry(input: NewEntry): LedgerEntry {
-    return { sms_key: null, ...input, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    return { sms_key: null, perf: false, ...input, id: crypto.randomUUID(), created_at: new Date().toISOString() };
   }
 
   addEntry(input: NewEntry): Promise<boolean> {

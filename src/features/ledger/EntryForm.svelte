@@ -22,6 +22,7 @@
   let category = $state(initial?.category ?? defaultCategory(ledger.categories));
   let amountText = $state(initial ? String(initial.amount) : "");
   let memo = $state(initial?.memo ?? "");
+  let perf = $state(initial?.perf ?? false);
 
   // 설정에서 지워진 분류나 카드로 적었던 항목을 고칠 때도 그 이름이 선택지에 남는다.
   const categories = $derived(ledger.categoryChoices(...(initial ? [initial.category] : [])));
@@ -35,7 +36,7 @@
     const memoError = validateMemo(memo);
     if (memoError) return notice.say("err", memoError);
 
-    const fields = { spent_on: spentOn, method, category, amount: amount.value, memo: memo.trim() };
+    const fields = { spent_on: spentOn, method, category, amount: amount.value, memo: memo.trim(), perf };
     const saved = entry ? await ledger.updateEntry(entry.id, fields) : await ledger.addEntry(fields);
     if (saved) onclose();
   }
@@ -76,6 +77,10 @@
     <span>메모</span>
     <input bind:value={memo} maxlength={MEMO_MAX} placeholder="선택" />
   </label>
+  <label class="check">
+    <input type="checkbox" bind:checked={perf} />
+    <span>실적으로 센다</span>
+  </label>
 
   <div class="actions">
     {#if entry}
@@ -92,6 +97,9 @@
   label { display: flex; align-items: center; gap: 8px; }
   label span { flex: 0 0 40px; font-size: 0.85rem; color: var(--muted); }
   label input, label select { flex: 1; min-width: 0; }
+  label.check { gap: 6px; }
+  label.check input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; }
+  label.check span { flex: 0 1 auto; }
   select {
     padding: 12px;
     font-size: 1rem;

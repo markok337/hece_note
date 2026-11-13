@@ -1,16 +1,18 @@
 <script lang="ts">
   // 결산: 한 달의 합계(예금 포함), 예산과 차액, 분류별·구분별 막대. 한 장의 표처럼 띠 제목 아래에 줄이 이어진다.
   // 분류·구분 줄을 누르면 그 묶음의 이력을 보는 창을 연다. 예산은 여기서 보기만 하고 설정 탭에서 정한다.
-  import { SAVINGS_CATEGORY, budgetStatus, formatWon, type MonthStats, type Slice, type SliceKind } from "./domain";
+  import { PERF_GOAL, SAVINGS_CATEGORY, budgetStatus, formatWon, type MonthStats, type Slice, type SliceKind } from "./domain";
 
   interface Props {
     stats: MonthStats;
     /** 이 달에 적용되는 예산. 정한 적이 없으면 null. */
     budget: number | null;
+    /** 이 달에 실적으로 표시한 지출 개수. */
+    perf: number;
     onpick: (kind: SliceKind, label: string) => void;
   }
 
-  const { stats, budget, onpick }: Props = $props();
+  const { stats, budget, perf, onpick }: Props = $props();
 
   /** 이 달 합계. 예산과 비교하는 지출 합계와 달리 예금을 합친다. */
   const grandTotal = $derived(stats.total + (stats.savings ?? 0));
@@ -44,6 +46,10 @@
     <div class="cell total-cell">
       <strong class="total">{formatWon(grandTotal)}</strong>
     </div>
+
+    <dl class="rows perf-row">
+      <div><dt>실적</dt><dd>{perf} / {PERF_GOAL}개</dd></div>
+    </dl>
 
     <h3 class="band">예산</h3>
     {#if status}

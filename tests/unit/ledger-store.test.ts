@@ -179,6 +179,16 @@ describe("항목", () => {
     expect(ledger.entriesIn(NOV)[0]).toMatchObject({ amount: 7000, sms_key: "k1" });
   });
 
+  it("실적 표시는 기본이 꺼짐이고, 켜서 저장하고 고칠 수 있다", async () => {
+    await ledger.addEntry(FIELDS);
+    await ledger.addEntry({ ...FIELDS, perf: true });
+    const [first, second] = ledger.entriesIn(NOV);
+    expect([first.perf, second.perf].sort()).toEqual([false, true]);
+    const off = ledger.entriesIn(NOV).find((item) => !item.perf)!;
+    await ledger.updateEntry(off.id, { perf: true });
+    expect(ledger.entriesIn(NOV).every((item) => item.perf)).toBe(true);
+  });
+
   it("없는 항목을 고치거나 지우면 false 다", async () => {
     expect(await ledger.updateEntry("none", { amount: 1 })).toBe(false);
     expect(await ledger.removeEntry("none")).toBe(false);

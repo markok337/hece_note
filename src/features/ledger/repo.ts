@@ -5,7 +5,7 @@ import type { BudgetRow, Card, CategoryRow, LedgerEntry, SmsRow, SmsStatus } fro
 import { fetchAllPages } from "../../core/paging";
 import { supabase } from "../../supabase";
 
-const ENTRY_COLUMNS = "id, spent_on, method, category, amount, memo, sms_key, created_at";
+const ENTRY_COLUMNS = "id, spent_on, method, category, amount, memo, sms_key, perf, created_at";
 const CARD_COLUMNS = "id, name, sender, samples, created_at";
 const CATEGORY_COLUMNS = "id, name, position, created_at";
 const BUDGET_COLUMNS = "id, scope, month, amount";
@@ -13,8 +13,8 @@ const SMS_COLUMNS = "id, sms_key, sender, received_at, body, status";
 
 /** 서버 행에서 앱이 쓰는 컬럼만 남긴다. 실시간 알림에는 user_id 같은 컬럼이 섞여 온다. */
 export function pickEntry(row: LedgerEntry): LedgerEntry {
-  const { id, spent_on, method, category, amount, memo, sms_key, created_at } = row;
-  return { id, spent_on, method, category, amount, memo, sms_key, created_at };
+  const { id, spent_on, method, category, amount, memo, sms_key, perf, created_at } = row;
+  return { id, spent_on, method, category, amount, memo, sms_key, perf, created_at };
 }
 
 export function pickCard(row: Card): Card {
