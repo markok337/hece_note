@@ -2,7 +2,7 @@
 // 낙관적으로 먼저 바꾸고, 저장에 실패하면 서버 값으로 되돌린다.
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import type { BudgetRow, BudgetRules, BudgetScope, Card, CategoryRow, LedgerEntry, SmsRow, SmsStatus } from "./domain";
+import type { BudgetRow, BudgetRules, BudgetScope, Card, CategoryRow, LedgerEntry, SmsRow, SmsSample, SmsStatus } from "./domain";
 import {
   DEFAULT_CATEGORIES,
   SAVINGS_CATEGORY,
@@ -296,6 +296,18 @@ class LedgerStore {
       () => delete this.cards[id],
       () => deleteCard(id),
       "카드 삭제 실패",
+    );
+  }
+
+  /** 카드의 견본을 하나 늘린다. 새 모양인지는 domain.newSample 이 가려서 부르는 쪽이 넘긴다. */
+  addSample(cardId: string, sample: SmsSample): Promise<boolean> {
+    const card = this.cards[cardId];
+    if (!card) return Promise.resolve(false);
+    const next: Card = { ...card, samples: [...card.samples, sample] };
+    return this.#write(
+      () => (this.cards[card.id] = next),
+      () => upsertCard(next),
+      "견본 저장 실패",
     );
   }
 

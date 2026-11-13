@@ -358,6 +358,23 @@ describe("문자함", () => {
   });
 });
 
+describe("견본", () => {
+  const SAMPLE = { body: "[Web발신] 신한 승인 5,600원 스타벅스 11/13", values: { amount: 5600 } };
+
+  it("카드의 견본을 늘리고 서버에 쓴다", async () => {
+    await ledger.addCard({ name: "신한", sender: "15888700", samples: [] });
+    const [card] = ledger.cardList();
+    expect(await ledger.addSample(card.id, SAMPLE)).toBe(true);
+    expect(ledger.cardList()[0].samples).toEqual([SAMPLE]);
+    expect(repo.upsertCard).toHaveBeenLastCalledWith(expect.objectContaining({ id: card.id, samples: [SAMPLE] }));
+  });
+
+  it("없는 카드에는 쓰지 않는다", async () => {
+    expect(await ledger.addSample("none", SAMPLE)).toBe(false);
+    expect(repo.upsertCard).not.toHaveBeenCalled();
+  });
+});
+
 describe("문자 불러오기(모의)", () => {
   beforeEach(() => {
     vi.useFakeTimers();

@@ -9,7 +9,7 @@
   import DrillDown from "./DrillDown.svelte";
   import EntryForm from "./EntryForm.svelte";
   import EntryList from "./EntryList.svelte";
-  import ImportPreview from "./ImportPreview.svelte";
+  import SmsInbox from "./SmsInbox.svelte";
   import SettingsPanel from "./SettingsPanel.svelte";
   import SettlementPanel from "./SettlementPanel.svelte";
   import { SAVINGS_CATEGORY, entriesBy, groupByDate, isCounted, monthStats, type LedgerEntry, type SliceKind } from "./domain";
@@ -150,7 +150,7 @@
 
   {#if inboxOpen}
     <Modal fixed label="처리 필요한 문자" onclose={() => (inboxOpen = false)}>
-      <ImportPreview onclose={() => (inboxOpen = false)} />
+      <SmsInbox onclose={() => (inboxOpen = false)} />
     </Modal>
   {/if}
 </div>

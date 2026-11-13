@@ -373,3 +373,77 @@ export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
   next.splice(to, 0, item);
   return next;
 }
+
+// ---- 문자 견본: 사용자가 문자에서 확정한 값으로 읽는 규칙의 바탕을 만든다 ----
+
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** 값이 문자에 적히는 모양들. 앞에 있는 것부터 찾는다. */
+function literalsOf(key: keyof SampleValues, values: SampleValues): string[] {
+  if (key === "amount") {
+    if (values.amount === undefined) return [];
+    const abs = Math.abs(values.amount);
+    return [abs.toLocaleString("ko-KR"), String(abs)];
+  }
+  if (key === "spent_on") {
+    if (!values.spent_on) return [];
+    const [y, m, d] = values.spent_on.split("-");
+    const [mm, dd] = [m, d];
+    const [mn, dn] = [String(Number(m)), String(Number(d))];
+    return [
+      `${y}-${mm}-${dd}`, `${y}.${mm}.${dd}`, `${y}/${mm}/${dd}`, `${y.slice(2)}.${mm}.${dd}`, `${y.slice(2)}/${mm}/${dd}`,
+      `${mn}월 ${dn}일`, `${mn}월${dn}일`, `${mm}/${dd}`, `${mn}/${dn}`, `${mm}.${dd}`, `${mm}-${dd}`,
+    ];
+  }
+  const merchant = values.merchant?.trim();
+  return merchant ? [merchant] : [];
+}
+
+/** 문자 본문에 값이 글자 그대로 적혀 있으면 그 글자를 돌려준다. 숫자는 다른 숫자의 일부이면 찾은 것으로 치지 않는다. */
+function findLiteral(body: string, key: keyof SampleValues, values: SampleValues): string | null {
+  for (const literal of literalsOf(key, values)) {
+    const pattern = key === "merchant" ? escapeRegExp(literal) : `(?<![\\d,.])${escapeRegExp(literal)}(?!\\d)`;
+    if (new RegExp(pattern).test(body)) return literal;
+  }
+  return null;
+}
+
+/** values 중 문자 본문에 글자 그대로 있는 값만 남긴다. 없는 값은 규칙이 될 수 없다. */
+export function locateValues(body: string, values: SampleValues): SampleValues {
+  const located: SampleValues = {};
+  if (findLiteral(body, "amount", values) !== null) located.amount = values.amount;
+  if (findLiteral(body, "spent_on", values) !== null) located.spent_on = values.spent_on;
+  if (findLiteral(body, "merchant", values) !== null) located.merchant = values.merchant?.trim();
+  return located;
+}
+
+/** 문자의 모양. 값 자리와 나머지 숫자를 자리표시로 바꿔서, 값만 다른 문자는 같은 모양이 된다. */
+export function sampleShape(sample: SmsSample): string {
+  let text = sample.body;
+  for (const key of ["amount", "spent_on", "merchant"] as const) {
+    const literal = findLiteral(text, key, sample.values);
+    if (literal !== null) text = text.replace(literal, `{${key}}`);
+  }
+  return text.replace(/\d+/g, "#");
+}
+
+/** 같은 값인가. 빈 글자와 없는 값은 같게 본다. */
+function sameValues(a: SampleValues, b: SampleValues): boolean {
+  return a.spent_on === b.spent_on && a.amount === b.amount && (a.merchant?.trim() || undefined) === (b.merchant?.trim() || undefined);
+}
+
+/**
+ * 사용자가 확정한 값(final)에서 새 견본을 만든다. 견본으로 남기지 않으면 null 이다.
+ * - 자동 채움(guess)이 맞아서 그대로 추가했으면 남기지 않는다.
+ * - 금액이 문자 본문에 없으면 규칙을 만들 수 없어 남기지 않는다.
+ * - 이미 같은 모양의 견본이 있거나 견본이 가득 찼으면 남기지 않는다.
+ */
+export function newSample(body: string, final: SampleValues, guess: SampleValues | null, samples: readonly SmsSample[]): SmsSample | null {
+  if (guess && sameValues(guess, final)) return null;
+  const values = locateValues(body, final);
+  if (values.amount === undefined) return null;
+  const candidate: SmsSample = { body, values };
+  if (samples.length >= SAMPLES_MAX) return null;
+  const shape = sampleShape(candidate);
+  return samples.some((sample) => sampleShape(sample) === shape) ? null : candidate;
+}

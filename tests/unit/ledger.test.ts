@@ -11,11 +11,15 @@ import {
   formatShortWon,
   formatWon,
   groupByDate,
+  locateValues,
   monthKeyLabel,
   monthStats,
+  newSample,
   parseAmount,
   parseBudget,
   parseSender,
+  SAMPLES_MAX,
+  sampleShape,
   smsCutoff,
   validateCardName,
   validateCategoryName,
@@ -385,5 +389,62 @@ describe("예금(합계 제외 분류)", () => {
     const last = (category: string | null) => categoryTrend([spend, save], NOV, category).at(-1)!.total;
     expect(last(null)).toBe(10_000);
     expect(last(SAVINGS_CATEGORY)).toBe(500_000);
+  });
+});
+
+describe("문자 견본", () => {
+  const BODY = "[Web발신] 신한 승인 5,600원 스타벅스 11/13";
+  const FINAL = { spent_on: "2026-11-13", amount: 5600, merchant: "스타벅스" };
+
+  it("문자에 글자 그대로 있는 값만 남긴다", () => {
+    expect(locateValues(BODY, FINAL)).toEqual(FINAL);
+    // 가맹점을 문자에 없는 이름으로 적으면 규칙이 될 수 없다.
+    expect(locateValues(BODY, { ...FINAL, merchant: "커피" })).toEqual({ spent_on: "2026-11-13", amount: 5600 });
+  });
+
+  it("금액은 다른 숫자의 일부이면 찾은 것으로 치지 않는다", () => {
+    expect(locateValues("승인 15,600원", { amount: 5600 })).toEqual({});
+    expect(locateValues("승인 5600원", { amount: 5600 })).toEqual({ amount: 5600 });
+  });
+
+  it("취소(음수)도 절댓값으로 찾는다", () => {
+    expect(locateValues("취소 5,600원", { amount: -5600 })).toEqual({ amount: -5600 });
+  });
+
+  it("날짜는 문자에 적힌 여러 모양으로 찾는다", () => {
+    for (const text of ["11/13", "2026.11.13", "26.11.13", "11월 13일", "11-13", "2026-11-13"]) {
+      expect(locateValues(`결제 ${text} 완료`, { spent_on: "2026-11-13" })).toEqual({ spent_on: "2026-11-13" });
+    }
+    expect(locateValues("결제 11/14", { spent_on: "2026-11-13" })).toEqual({});
+  });
+
+  it("값만 다른 문자는 같은 모양이다", () => {
+    const a = { body: BODY, values: FINAL };
+    const b = { body: "[Web발신] 신한 승인 12,000원 GS25 11/14", values: { spent_on: "2026-11-14", amount: 12000, merchant: "GS25" } };
+    const cancel = { body: "[Web발신] 신한 취소 5,600원 스타벅스 11/13", values: FINAL };
+    expect(sampleShape(a)).toBe(sampleShape(b));
+    expect(sampleShape(a)).not.toBe(sampleShape(cancel));
+  });
+
+  it("자동 채움이 맞아서 그대로 추가했으면 견본으로 남기지 않는다", () => {
+    expect(newSample(BODY, FINAL, FINAL, [])).toBeNull();
+  });
+
+  it("자동 채움이 틀렸거나 비었으면 확정한 값으로 견본을 만든다", () => {
+    expect(newSample(BODY, FINAL, null, [])).toEqual({ body: BODY, values: FINAL });
+    expect(newSample(BODY, FINAL, { ...FINAL, amount: 5000 }, [])).toEqual({ body: BODY, values: FINAL });
+    expect(newSample(BODY, FINAL, { spent_on: FINAL.spent_on, amount: 5600 }, [])?.values.merchant).toBe("스타벅스");
+  });
+
+  it("문자에 없는 값은 견본에 담지 않고, 금액이 없으면 견본을 만들지 않는다", () => {
+    expect(newSample(BODY, { ...FINAL, merchant: "커피" }, null, [])?.values).toEqual({ spent_on: "2026-11-13", amount: 5600 });
+    expect(newSample("[Web발신] 안내", { amount: 5600 }, null, [])).toBeNull();
+  });
+
+  it("이미 같은 모양이 있거나 견본이 가득 차면 만들지 않는다", () => {
+    const other = { body: "[Web발신] 신한 승인 12,000원 GS25 11/14", values: { spent_on: "2026-11-14", amount: 12000, merchant: "GS25" } };
+    expect(newSample(BODY, FINAL, null, [other])).toBeNull();
+    const full = Array.from({ length: SAMPLES_MAX }, (_, i) => ({ body: `다른 ${"가".repeat(i + 1)} 5,000원`, values: { amount: 5000 } }));
+    expect(newSample(BODY, FINAL, null, full)).toBeNull();
   });
 });
