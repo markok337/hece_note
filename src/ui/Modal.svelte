@@ -6,11 +6,13 @@
     label: string;
     /** true 면 안의 내용이 늘고 줄어도 창 크기가 변하지 않는다(안쪽 목록이 스크롤). */
     fixed?: boolean;
+    /** true 면 달력처럼 가로로 넓은 내용을 위해 창을 더 넓게 쓴다. */
+    wide?: boolean;
     onclose: () => void;
     children: Snippet;
   }
 
-  const { label, fixed = false, onclose, children }: Props = $props();
+  const { label, fixed = false, wide = false, onclose, children }: Props = $props();
 
   let modalEl = $state<HTMLDivElement>();
 
@@ -49,6 +51,7 @@
   <div
     class="modal"
     class:fixed
+    class:wide
     role="dialog"
     aria-modal="true"
     aria-label={label}
@@ -88,6 +91,7 @@
   }
   /* 높이를 고정하고 안쪽 내용이 남는 자리를 채운다. 내용이 많으면 목록만 스크롤한다. */
   .modal.fixed { height: min(560px, 100%); display: flex; flex-direction: column; overflow: hidden; }
+  .modal.wide { max-width: 520px; }
   .close { position: absolute; top: 8px; right: 8px; padding: 6px 10px; }
 
   @media (max-height: 520px) {

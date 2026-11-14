@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMPARTMENTS,
   MAX_QUANTITY,
+  MEAL_MAX,
+  ZONES,
+  compartmentTitle,
+  isEmptyMeal,
+  validateMeal,
   decrease,
   increase,
   parseQuantity,
@@ -142,5 +148,42 @@ describe("daysSince / elapsedLabel", () => {
   it("지난 날은 'N일', 앞으로의 날짜는 'N일 후'다", () => {
     expect(elapsedLabel("2026-11-08", "2026-11-13")).toBe("5일");
     expect(elapsedLabel("2026-11-16", "2026-11-13")).toBe("3일 후");
+  });
+});
+
+describe("구역과 칸", () => {
+  it("모든 칸이 구역 하나에만 들어 있다", () => {
+    const placed = ZONES.flatMap((zone) => zone.compartments);
+    expect([...placed].sort()).toEqual([...COMPARTMENTS].sort());
+  });
+
+  it("실온은 칸이 하나뿐인 구역이다", () => {
+    expect(ZONES.find((zone) => zone.id === "pantry")?.compartments).toEqual(["pantry"]);
+  });
+
+  it("칸이 둘인 구역은 구역과 칸 이름을 함께 쓴다", () => {
+    expect(compartmentTitle("fridge_fresh")).toBe("냉장고 · 신선");
+  });
+
+  it("칸이 하나뿐인 구역은 이름을 한 번만 쓴다", () => {
+    expect(compartmentTitle("pantry")).toBe("실온 보관");
+  });
+});
+
+describe("식단 규칙", () => {
+  it("빈 글자는 쓸 수 있다(그 끼니를 지우는 뜻)", () => {
+    expect(validateMeal("")).toBeNull();
+    expect(validateMeal("   ")).toBeNull();
+  });
+
+  it("상한까지는 쓸 수 있고 넘으면 막는다", () => {
+    expect(validateMeal("가".repeat(MEAL_MAX))).toBeNull();
+    expect(validateMeal("가".repeat(MEAL_MAX + 1))).not.toBeNull();
+  });
+
+  it("점심·저녁이 모두 비어야 빈 식단이다", () => {
+    expect(isEmptyMeal({ lunch: "", dinner: "" })).toBe(true);
+    expect(isEmptyMeal({ lunch: "밥", dinner: "" })).toBe(false);
+    expect(isEmptyMeal({ lunch: "", dinner: "국" })).toBe(false);
   });
 });

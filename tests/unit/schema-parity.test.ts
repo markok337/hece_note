@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ASSIGNEES, CATEGORIES, CHECKS } from "../../src/features/blog/domain";
-import { COMPARTMENTS, MAX_QUANTITY, NAME_MAX } from "../../src/features/fridge/domain";
+import { COMPARTMENTS, MAX_QUANTITY, MEAL_MAX, NAME_MAX } from "../../src/features/fridge/domain";
 import { AMOUNT_MAX, CARD_NAME_MAX, CASH, CATEGORY_NAME_MAX, MEMO_MAX, SAMPLES_MAX, SMS_KEEP_DAYS } from "../../src/features/ledger/domain";
 
 const sql = readFileSync("supabase/migrations/0002_blog.sql", "utf-8");
@@ -41,9 +41,22 @@ describe("TS 규칙과 SQL 제약", () => {
 describe("냉장고: TS 규칙과 SQL 제약", () => {
   const fridgeSql = readFileSync("supabase/migrations/0003_fridge.sql", "utf-8");
 
+  // 칸 목록 제약은 0007 에서 실온을 넣어 다시 만들었다. 가장 나중 정의가 서버에 남는다.
+  const pantrySql = readFileSync("supabase/migrations/0007_pantry_meals.sql", "utf-8");
+
   it("칸 선택지가 같다", () => {
-    const list = fridgeSql.match(/compartment in \(([^)]*)\)/)![1];
+    const list = pantrySql.match(/compartment in \(([^)]*)\)/)![1];
     expect([...list.matchAll(/'([^']+)'/g)].map((m) => m[1])).toEqual([...COMPARTMENTS]);
+  });
+
+  it("0007 이 고치는 제약 이름이 0003 이 만든 이름과 같다", () => {
+    expect(fridgeSql).toMatch(/compartment text\s+not null\s+check/);
+    expect(pantrySql).toContain("drop constraint if exists fridge_items_compartment_check");
+  });
+
+  it("식단 글자 길이 상한이 같다(점심·저녁)", () => {
+    const limits = [...pantrySql.matchAll(/char_length\(btrim\((?:lunch|dinner)\)\) <= (\d+)/g)].map((m) => Number(m[1]));
+    expect(limits).toEqual([MEAL_MAX, MEAL_MAX]);
   });
 
   it("개수 상한이 같다", () => {

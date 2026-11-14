@@ -5,6 +5,7 @@
   import Modal from "../../ui/Modal.svelte";
   import CompartmentCell from "./CompartmentCell.svelte";
   import CompartmentPanel from "./CompartmentPanel.svelte";
+  import MealPlanner from "./MealPlanner.svelte";
   import ShoppingList from "./ShoppingList.svelte";
   import { ZONES, compartmentTitle, type Compartment } from "./domain";
   import { fridge } from "./store.svelte";
@@ -12,6 +13,7 @@
   // 태블릿형은 항상 한 칸이 옆에 열려 있고(고르지 않았으면 첫 칸), 모바일형은 누른 칸만 모달로 열린다.
   let selected = $state<Compartment | null>(null);
   let shoppingOpen = $state(false);
+  let mealsOpen = $state(false);
 
   const panelCompartment = $derived(viewport.isWide ? (selected ?? ZONES[0].compartments[0]) : selected);
 
@@ -30,6 +32,7 @@
     <button type="button" class="sub shop" onclick={() => (shoppingOpen = true)}>
       구매목록{#if fridge.toBuy > 0}<span class="badge">{fridge.toBuy}</span>{/if}
     </button>
+    <button type="button" class="sub" onclick={() => (mealsOpen = true)}>식단</button>
     <span class="spacer"></span>
     <button type="button" class="sub icon" aria-label="새로고침" onclick={() => void fridge.load()}>
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -48,7 +51,7 @@
       {#each ZONES as zone (zone.id)}
         <section class="zone {zone.id}" aria-label={zone.label}>
           <h1>{zone.label}</h1>
-          <div class="cells">
+          <div class="cells" style:--cols={zone.compartments.length}>
             {#each zone.compartments as compartment (compartment)}
               <CompartmentCell
                 {compartment}
@@ -82,6 +85,12 @@
       <ShoppingList />
     </Modal>
   {/if}
+
+  {#if mealsOpen}
+    <Modal fixed wide label="식단" onclose={() => (mealsOpen = false)}>
+      <MealPlanner />
+    </Modal>
+  {/if}
 </div>
 
 <style>
@@ -107,8 +116,8 @@
   .body { flex: 1; display: flex; min-height: 0; }
   .wide .body { gap: 12px; }
 
-  /* 위(냉장고)와 아래(냉동고)가 높이를 반씩 나눈다. */
-  .zones { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  /* 위(냉장고)와 가운데(냉동고)가 높이를 같게 나누고, 칸이 하나뿐인 아래(실온)는 조금 낮게 둔다. */
+  .zones { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.55fr); gap: 8px; }
   .zone {
     min-height: 0;
     display: flex;
@@ -120,8 +129,9 @@
   }
   .zone.fridge { background: var(--zone-fridge); }
   .zone.freezer { background: var(--zone-freezer); }
+  .zone.pantry { background: var(--zone-pantry); }
   h1 { margin: 0; font-size: 0.85rem; color: var(--muted); }
-  .cells { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 8px; }
+  .cells { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: 8px; }
 
   .side {
     width: 360px;

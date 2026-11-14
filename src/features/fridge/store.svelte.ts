@@ -1,22 +1,28 @@
-// 화면이 구독하는 냉장고 상태(재료 + 구매목록). 낙관적으로 먼저 바꾸고, 저장에 실패하면 서버 값으로 되돌린다.
+// 화면이 구독하는 냉장고 상태(재료 + 구매목록 + 식단). 낙관적으로 먼저 바꾸고, 저장에 실패하면 서버 값으로 되돌린다.
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
+  isEmptyMeal,
   sortOldestFirst,
   sortShopping,
   type Compartment,
   type FridgeItem,
+  type Meal,
+  type MealSlot,
   type ShoppingItem,
 } from "./domain";
 import {
   deleteCheckedShopping,
   deleteItem,
+  deleteMeal,
   deleteShopping,
   fetchItems,
+  fetchMeals,
   fetchShopping,
   subscribeFridge,
   unsubscribe,
   upsertItem,
+  upsertMeal,
   upsertShopping,
   type RowChange,
 } from "./repo";
@@ -41,6 +47,8 @@ function applyChange<T>(map: Record<string, T>, change: RowChange<T>): void {
 class FridgeStore {
   items = $state<Record<string, FridgeItem>>({});
   shopping = $state<Record<string, ShoppingItem>>({});
+  /** 날짜("2026-11-08")별 식단. 점심·저녁이 모두 빈 날은 없다. */
+  meals = $state<Record<string, Meal>>({});
   loaded = $state(false);
   live = $state(false);
 
@@ -60,6 +68,11 @@ class FridgeStore {
     return sortShopping(Object.values(this.shopping));
   }
 
+  /** 그날의 식단. 적은 게 없으면 null. */
+  mealOn(day: string): Meal | null {
+    return this.meals[day] ?? null;
+  }
+
   /** 아직 체크하지 않은(사야 하는) 항목 수. */
   get toBuy(): number {
     return Object.values(this.shopping).filter((item) => !item.checked).length;
@@ -73,7 +86,7 @@ class FridgeStore {
     const seq = ++this.#loadSeq;
     const epoch = this.#epoch;
     try {
-      const [items, shopping] = await Promise.all([fetchItems(), fetchShopping()]);
+      const [items, shopping, meals] = await Promise.all([fetchItems(), fetchShopping(), fetchMeals()]);
       if (seq !== this.#loadSeq) return;
       // 응답을 기다리는 사이 쓰기가 시작됐다면 이 값은 내 변경보다 오래됐다. 버리고 쓰기가 끝난 뒤 다시 받는다.
       if (epoch !== this.#epoch) {
@@ -83,6 +96,7 @@ class FridgeStore {
       }
       this.items = Object.fromEntries(items.map((row) => [row.id, row]));
       this.shopping = Object.fromEntries(shopping.map((row) => [row.id, row]));
+      this.meals = Object.fromEntries(meals.map((row) => [row.day, row]));
       this.loaded = true;
     } catch (err) {
       notice.say("err", `불러오기 실패: ${(err as Error).message}`);
@@ -94,6 +108,7 @@ class FridgeStore {
     this.#channel = subscribeFridge({
       onItem: (change) => this.#receive(() => applyChange(this.items, change)),
       onShopping: (change) => this.#receive(() => applyChange(this.shopping, change)),
+      onMeal: (change) => this.#receive(() => applyChange(this.meals, change)),
       onStatus: (isLive) => {
         this.live = isLive;
         // 끊겼다 다시 붙으면 그사이 놓친 변경을 다시 가져온다.
@@ -110,6 +125,7 @@ class FridgeStore {
     this.#loadSeq += 1; // 로그아웃 뒤에 늦게 도착한 응답이 화면을 채우지 않게 한다.
     this.items = {};
     this.shopping = {};
+    this.meals = {};
   }
 
   #receive(apply: () => void): void {
@@ -166,6 +182,28 @@ class FridgeStore {
       () => (this.items[id] = next),
       () => upsertItem(next),
       failure,
+    );
+  }
+
+  /**
+   * 그날 한 끼의 메뉴를 바꾼다. 비우면 그 끼니를 지우고, 점심·저녁이 모두 비면 그날의 행을 지운다.
+   * 값 길이는 부르는 쪽이 확인한다. 바뀐 게 없으면 아무것도 안 한다.
+   */
+  setMeal(day: string, slot: MealSlot, text: string): Promise<boolean> {
+    const current = this.meals[day] ?? { day, lunch: "", dinner: "" };
+    const next: Meal = { ...current, [slot]: text.trim() };
+    if (next[slot] === current[slot]) return Promise.resolve(false);
+    if (isEmptyMeal(next)) {
+      return this.#write(
+        () => delete this.meals[day],
+        () => deleteMeal(day),
+        "식단 삭제 실패",
+      );
+    }
+    return this.#write(
+      () => (this.meals[day] = next),
+      () => upsertMeal(next),
+      "식단 저장 실패",
     );
   }
 

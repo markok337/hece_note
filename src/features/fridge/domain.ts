@@ -2,19 +2,21 @@
 
 import { dayNumber, parseYmd } from "../../core/dates";
 
-export const COMPARTMENTS = ["fridge_fresh", "fridge_sauce", "freezer_ingredient", "freezer_mealkit"] as const;
+export const COMPARTMENTS = ["fridge_fresh", "fridge_sauce", "freezer_ingredient", "freezer_mealkit", "pantry"] as const;
 export type Compartment = (typeof COMPARTMENTS)[number];
 
 export interface Zone {
-  id: "fridge" | "freezer";
+  id: "fridge" | "freezer" | "pantry";
   label: string;
-  compartments: readonly [Compartment, Compartment];
+  /** 구역 안의 칸. 냉장고·냉동고는 둘, 실온은 하나다. */
+  compartments: readonly Compartment[];
 }
 
-/** 메인 화면의 위(냉장고)·아래(냉동고) 구역과, 구역 안의 왼쪽·오른쪽 칸. */
+/** 메인 화면의 위(냉장고)·가운데(냉동고)·아래(실온) 구역과, 구역 안의 왼쪽·오른쪽 칸. */
 export const ZONES: readonly Zone[] = [
   { id: "fridge", label: "냉장고", compartments: ["fridge_fresh", "fridge_sauce"] },
   { id: "freezer", label: "냉동고", compartments: ["freezer_ingredient", "freezer_mealkit"] },
+  { id: "pantry", label: "실온", compartments: ["pantry"] },
 ];
 
 export const COMPARTMENT_LABELS: Record<Compartment, string> = {
@@ -22,11 +24,13 @@ export const COMPARTMENT_LABELS: Record<Compartment, string> = {
   fridge_sauce: "양념",
   freezer_ingredient: "재료",
   freezer_mealkit: "밀키트",
+  pantry: "실온 보관",
 };
 
-/** "냉장고 · 신선" 꼴의 칸 제목. */
+/** "냉장고 · 신선" 꼴의 칸 제목. 구역에 칸이 하나뿐이면 칸 이름이 곧 구역 이름이라 한 번만 쓴다. */
 export function compartmentTitle(compartment: Compartment): string {
   const zone = ZONES.find((z) => z.compartments.includes(compartment))!;
+  if (zone.compartments.length === 1) return COMPARTMENT_LABELS[compartment];
   return `${zone.label} · ${COMPARTMENT_LABELS[compartment]}`;
 }
 
@@ -49,6 +53,31 @@ export interface ShoppingItem {
   name: string;
   checked: boolean;
   created_at: string;
+}
+
+/** 하루 식단. 점심·저녁이 모두 비면 행을 두지 않는다. 냉장고 재료와는 이어지지 않는 자유 메모다. */
+export interface Meal {
+  /** "2026-11-08" 꼴. */
+  day: string;
+  lunch: string;
+  dinner: string;
+}
+
+export const MEAL_SLOTS = ["lunch", "dinner"] as const;
+export type MealSlot = (typeof MEAL_SLOTS)[number];
+
+export const MEAL_LABELS: Record<MealSlot, string> = { lunch: "점심", dinner: "저녁" };
+
+export const MEAL_MAX = 40;
+
+/** 식단 글자가 쓸 수 있는 값이면 null, 아니면 이유. 비워 두는 것(그 끼니를 지움)은 쓸 수 있다. */
+export function validateMeal(raw: string): string | null {
+  return raw.trim().length > MEAL_MAX ? `식단은 ${MEAL_MAX}자까지 쓴다.` : null;
+}
+
+/** 점심·저녁이 둘 다 비었는지. */
+export function isEmptyMeal(meal: Pick<Meal, "lunch" | "dinner">): boolean {
+  return meal.lunch === "" && meal.dinner === "";
 }
 
 function compareText(a: string, b: string): number {

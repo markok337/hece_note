@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FridgeItem, ShoppingItem } from "../../src/features/fridge/domain";
+import type { FridgeItem, Meal, ShoppingItem } from "../../src/features/fridge/domain";
 
 const repo = vi.hoisted(() => ({
   fetchItems: vi.fn(),
   fetchShopping: vi.fn(),
+  fetchMeals: vi.fn(),
+  upsertMeal: vi.fn(),
+  deleteMeal: vi.fn(),
   upsertItem: vi.fn(),
   deleteItem: vi.fn(),
   upsertShopping: vi.fn(),
@@ -28,7 +31,8 @@ beforeEach(async () => {
   vi.resetAllMocks();
   repo.fetchItems.mockResolvedValue([item("old", "2026-11-01", 2), item("new", "2026-11-09")]);
   repo.fetchShopping.mockResolvedValue([shop("a"), shop("bb", true)]);
-  for (const name of ["upsertItem", "deleteItem", "upsertShopping", "deleteShopping", "deleteCheckedShopping", "unsubscribe"] as const) {
+  repo.fetchMeals.mockResolvedValue([{ day: "2026-11-14", lunch: "김치찌개", dinner: "" } satisfies Meal]);
+  for (const name of ["upsertMeal", "deleteMeal", "upsertItem", "deleteItem", "upsertShopping", "deleteShopping", "deleteCheckedShopping", "unsubscribe"] as const) {
     repo[name].mockResolvedValue(undefined);
   }
   await fridge.stop();
@@ -124,12 +128,53 @@ describe("구매목록 쓰기", () => {
   });
 });
 
+describe("식단 쓰기", () => {
+  beforeEach(async () => {
+    await fridge.load();
+  });
+
+  it("불러온 식단을 날짜로 찾는다", () => {
+    expect(fridge.mealOn("2026-11-14")?.lunch).toBe("김치찌개");
+    expect(fridge.mealOn("2026-11-15")).toBeNull();
+  });
+
+  it("빈 날에 저녁을 적으면 점심은 빈 채로 행이 생긴다", async () => {
+    await fridge.setMeal("2026-11-15", "dinner", "  파스타 ");
+    expect(fridge.mealOn("2026-11-15")).toEqual({ day: "2026-11-15", lunch: "", dinner: "파스타" });
+    expect(repo.upsertMeal).toHaveBeenCalledWith({ day: "2026-11-15", lunch: "", dinner: "파스타" });
+  });
+
+  it("한 끼를 바꿔도 다른 끼니는 그대로다", async () => {
+    await fridge.setMeal("2026-11-14", "dinner", "삼겹살");
+    expect(fridge.mealOn("2026-11-14")).toEqual({ day: "2026-11-14", lunch: "김치찌개", dinner: "삼겹살" });
+  });
+
+  it("값이 그대로면 저장하지 않는다", async () => {
+    expect(await fridge.setMeal("2026-11-14", "lunch", "김치찌개 ")).toBe(false);
+    expect(repo.upsertMeal).not.toHaveBeenCalled();
+  });
+
+  it("남은 끼니가 있으면 한 끼를 비워도 행은 남는다", async () => {
+    await fridge.setMeal("2026-11-14", "dinner", "국수");
+    await fridge.setMeal("2026-11-14", "lunch", "");
+    expect(fridge.mealOn("2026-11-14")).toEqual({ day: "2026-11-14", lunch: "", dinner: "국수" });
+    expect(repo.deleteMeal).not.toHaveBeenCalled();
+  });
+
+  it("점심·저녁이 모두 비면 그날의 행을 지운다", async () => {
+    await fridge.setMeal("2026-11-14", "lunch", "");
+    expect(fridge.mealOn("2026-11-14")).toBeNull();
+    expect(repo.deleteMeal).toHaveBeenCalledWith("2026-11-14");
+  });
+});
+
 describe("로그아웃", () => {
   it("정리하면 데이터를 비운다", async () => {
     await fridge.load();
     await fridge.stop();
     expect(fridge.items).toEqual({});
     expect(fridge.shopping).toEqual({});
+    expect(fridge.meals).toEqual({});
     expect(fridge.loaded).toBe(false);
   });
 });
