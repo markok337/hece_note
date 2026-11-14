@@ -55,22 +55,28 @@ export function fetchEntries(): Promise<LedgerEntry[]> {
   });
 }
 
-export async function fetchCards(): Promise<Card[]> {
-  const { data, error } = await client().from("ledger_cards").select(CARD_COLUMNS);
-  check(error);
-  return data as Card[];
+export function fetchCards(): Promise<Card[]> {
+  return fetchAllPages(async (from, to) => {
+    const { data, error } = await client().from("ledger_cards").select(CARD_COLUMNS).order("id").range(from, to);
+    check(error);
+    return data as Card[];
+  });
 }
 
-export async function fetchCategories(): Promise<CategoryRow[]> {
-  const { data, error } = await client().from("ledger_categories").select(CATEGORY_COLUMNS);
-  check(error);
-  return data as CategoryRow[];
+export function fetchCategories(): Promise<CategoryRow[]> {
+  return fetchAllPages(async (from, to) => {
+    const { data, error } = await client().from("ledger_categories").select(CATEGORY_COLUMNS).order("id").range(from, to);
+    check(error);
+    return data as CategoryRow[];
+  });
 }
 
-export async function fetchBudgetRules(): Promise<BudgetRow[]> {
-  const { data, error } = await client().from("ledger_budget_rules").select(BUDGET_COLUMNS);
-  check(error);
-  return data as BudgetRow[];
+export function fetchBudgetRules(): Promise<BudgetRow[]> {
+  return fetchAllPages(async (from, to) => {
+    const { data, error } = await client().from("ledger_budget_rules").select(BUDGET_COLUMNS).order("id").range(from, to);
+    check(error);
+    return data as BudgetRow[];
+  });
 }
 
 export function fetchSms(): Promise<SmsRow[]> {

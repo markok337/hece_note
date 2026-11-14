@@ -373,7 +373,7 @@ describe("moveItem", () => {
 });
 
 describe("예금(합계 제외 분류)", () => {
-  const spend = { id: "s", spent_on: "2026-11-05", method: "신한", category: "식비", amount: 10_000, memo: "", sms_key: null, created_at: "2026-11-05T00:00:00Z" };
+  const spend = { id: "s", spent_on: "2026-11-05", method: "신한", category: "식비", amount: 10_000, memo: "", sms_key: null, perf: false, created_at: "2026-11-05T00:00:00Z" };
   const save = { ...spend, id: "v", category: SAVINGS_CATEGORY, amount: 500_000 };
   const lastMonth = { ...spend, id: "p", spent_on: "2026-10-05", amount: 7_000 };
   const lastMonthSave = { ...save, id: "q", spent_on: "2026-10-06" };

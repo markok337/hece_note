@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { WriteQueue } from "../../src/core/write-queue";
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("WriteQueue", () => {
   it("앞 작업이 느려도 누른 순서대로 처리한다", async () => {

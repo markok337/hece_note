@@ -34,16 +34,21 @@ function check(error: { message: string } | null): void {
   if (error) throw new Error(error.message);
 }
 
-export async function fetchItems(): Promise<FridgeItem[]> {
-  const { data, error } = await client().from("fridge_items").select(ITEM_COLUMNS);
-  check(error);
-  return data as FridgeItem[];
+// 서버가 한 번에 1000행까지만 주므로 이어서 받는다. 쪽이 겹치거나 빠지지 않게 id(기본키) 순으로 자른다.
+export function fetchItems(): Promise<FridgeItem[]> {
+  return fetchAllPages(async (from, to) => {
+    const { data, error } = await client().from("fridge_items").select(ITEM_COLUMNS).order("id").range(from, to);
+    check(error);
+    return data as FridgeItem[];
+  });
 }
 
-export async function fetchShopping(): Promise<ShoppingItem[]> {
-  const { data, error } = await client().from("shopping_items").select(SHOPPING_COLUMNS);
-  check(error);
-  return data as ShoppingItem[];
+export function fetchShopping(): Promise<ShoppingItem[]> {
+  return fetchAllPages(async (from, to) => {
+    const { data, error } = await client().from("shopping_items").select(SHOPPING_COLUMNS).order("id").range(from, to);
+    check(error);
+    return data as ShoppingItem[];
+  });
 }
 
 // 식단은 하루에 한 행이라 해마다 365행이 쌓인다. 서버 상한(1000행)을 넘겨도 빠지지 않게 날짜(기본키) 순으로 이어 받는다.
