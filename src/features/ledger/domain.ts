@@ -493,6 +493,7 @@ export function plainBody(body: string): string {
 /**
  * 사용자가 확정한 값(final)에서 새 견본을 만든다. 견본으로 남기지 않으면 null 이다.
  * - 자동 채움(guess)이 맞아서 그대로 추가했으면 남기지 않는다.
+ * - 문자 본문에 있는 글자로 고친 값이 하나도 없으면 남기지 않는다. 본문에 없는 글(내가 지어 적은 메모)은 문자의 모양을 알려 주지 못한다.
  * - 금액이 문자 본문에 없으면 규칙을 만들 수 없어 남기지 않는다.
  * - 이미 같은 모양의 견본이 있거나 견본이 가득 찼으면 남기지 않는다.
  */
@@ -500,6 +501,8 @@ export function newSample(body: string, final: SampleValues, guess: SampleValues
   if (guess && sameValues(guess, final)) return null;
   const values = locateValues(body, final);
   if (values.amount === undefined) return null;
+  const corrected = (["amount", "spent_on", "merchant"] as const).some((key) => values[key] !== undefined && values[key] !== guess?.[key]);
+  if (!corrected) return null;
   const candidate: SmsSample = { body, values };
   if (samples.length >= SAMPLES_MAX) return null;
   const shape = sampleShape(candidate);

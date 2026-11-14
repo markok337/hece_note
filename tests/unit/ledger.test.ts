@@ -464,6 +464,15 @@ describe("문자 견본", () => {
     expect(newSample("[Web발신] 안내", { amount: 5600 }, null, [])).toBeNull();
   });
 
+  it("자동 채움이 맞고 메모만 문자에 없는 글로 바꿨으면 견본을 만들지 않는다", () => {
+    expect(newSample(BODY, { ...FINAL, merchant: "점심" }, FINAL, [])).toBeNull();
+  });
+
+  it("메모를 문자에 있는 글자로 줄여 고치면 견본을 만든다", () => {
+    const guess = { ...FINAL, merchant: "스타벅스 강남점" };
+    expect(newSample("[Web발신] 신한 승인 5,600원 스타벅스 강남점 11/13", FINAL, guess, [])?.values.merchant).toBe("스타벅스");
+  });
+
   it("이미 같은 모양이 있거나 견본이 가득 차면 만들지 않는다", () => {
     const other = { body: "[Web발신] 신한 승인 12,000원 GS25 11/14", values: { spent_on: "2026-11-14", amount: 12000, merchant: "GS25" } };
     expect(newSample(BODY, FINAL, null, [other])).toBeNull();
