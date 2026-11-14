@@ -341,7 +341,8 @@ describe("문자함", () => {
     await ledger.receiveSms([message("a"), message("b")], NOW);
     await ledger.addEntry({ ...FIELDS, sms_key: "a" });
     expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["b"]);
-    expect(repo.setSmsStatus).toHaveBeenCalledWith([expect.any(String)], "done");
+    // id 는 기기마다 달라서, 서버에는 어느 기기에서든 같은 sms_key 로 알린다.
+    expect(repo.setSmsStatus).toHaveBeenCalledWith(["a"], "done");
     // 같은 문자가 다시 들어와도 처리 필요로 돌아가지 않는다.
     await ledger.receiveSms([message("a"), message("b")], NOW);
     expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["b"]);
@@ -350,7 +351,7 @@ describe("문자함", () => {
   it("무시한 문자는 다시 불러와도 나오지 않고, 초기화하면 돌아온다", async () => {
     await ledger.receiveSms([message("a")], NOW);
     await ledger.ignoreSms([ledger.pendingSms()[0].id]);
-    expect(repo.setSmsStatus).toHaveBeenCalledWith([expect.any(String)], "ignored");
+    expect(repo.setSmsStatus).toHaveBeenCalledWith(["a"], "ignored");
     expect(ledger.pendingSms()).toEqual([]);
     expect(ledger.ignoredCount).toBe(1);
 

@@ -238,7 +238,7 @@ class LedgerStore {
       },
       async () => {
         await upsertEntry(entry);
-        if (done.length > 0) await setSmsStatus(done.map((row) => row.id), "done");
+        if (done.length > 0) await setSmsStatus(done.map((row) => row.sms_key), "done");
       },
       "지출 추가 실패",
     );
@@ -256,7 +256,7 @@ class LedgerStore {
       },
       async () => {
         await upsertEntries(added);
-        if (done.length > 0) await setSmsStatus(done.map((row) => row.id), "done");
+        if (done.length > 0) await setSmsStatus(done.map((row) => row.sms_key), "done");
       },
       "지출 추가 실패",
     );
@@ -429,7 +429,7 @@ class LedgerStore {
       () => {
         for (const row of rows) this.sms[row.id] = { ...row, status: "ignored" };
       },
-      () => setSmsStatus(rows.map((row) => row.id), "ignored"),
+      () => setSmsStatus(rows.map((row) => row.sms_key), "ignored"),
       "문자 무시 실패",
     );
   }

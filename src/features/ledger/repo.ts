@@ -137,8 +137,12 @@ export async function insertSms(rows: readonly SmsRow[]): Promise<void> {
   check(error);
 }
 
-export async function setSmsStatus(ids: readonly string[], status: SmsStatus): Promise<void> {
-  check((await client().from("ledger_sms").update({ status }).in("id", ids)).error);
+/**
+ * 문자의 처리 상태를 바꾼다. 다른 기기가 먼저 쌓은 문자는 이 기기가 만든 id 가 서버에 없으므로,
+ * 어느 기기에서든 같은 식별값(sms_key)으로 찾는다.
+ */
+export async function setSmsStatus(smsKeys: readonly string[], status: SmsStatus): Promise<void> {
+  check((await client().from("ledger_sms").update({ status }).in("sms_key", smsKeys)).error);
 }
 
 /** 무시한 문자를 모두 처리 필요로 되돌린다. */
