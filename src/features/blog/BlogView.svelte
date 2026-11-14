@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onMount } from "svelte";
   import { clock } from "../../core/clock.svelte";
   import { session } from "../../core/session.svelte";
   import { blog } from "./store.svelte";
   import { viewport } from "../../core/viewport.svelte";
   import { parseYmd, shiftMonth, type MonthRef } from "../../core/dates";
   import Calendar from "./Calendar.svelte";
+  import Modal from "../../ui/Modal.svelte";
   import ItemPanel from "./ItemPanel.svelte";
 
   // 드래그 중 이전/다음 달 버튼 위에 머물면 달이 넘어간다. 처음은 짧게, 이어서는 조금 느리게.
@@ -18,7 +19,6 @@
   const todayMonth = $derived<MonthRef>({ year: parseYmd(today).year, month: parseYmd(today).month });
 
   let month = $state<MonthRef>({ year: parseYmd(clock.today).year, month: parseYmd(clock.today).month });
-  let modalEl = $state<HTMLDivElement>();
   // 태블릿형은 항상 하나가 보이고(고르지 않았으면 오늘), 모바일형은 누른 날짜만 모달로 열린다.
   let selected = $state<string | null>(null);
   let hoverNav = $state<Nav | null>(null);
@@ -62,37 +62,6 @@
 
   function closeModal(): void {
     selected = null;
-  }
-
-  // 모달이 열리면 포커스를 안으로 옮기고, 닫히면 원래 누르던 칸으로 돌려준다.
-  $effect(() => {
-    if (!modalEl) return;
-    const opener = document.activeElement as HTMLElement | null;
-    void tick().then(() => modalEl?.focus());
-    return () => {
-      if (opener?.isConnected) opener.focus();
-    };
-  });
-
-  /** Escape 로 닫고, Tab 은 모달 안에서만 돈다. */
-  function onModalKey(event: KeyboardEvent): void {
-    if (event.key === "Escape") {
-      closeModal();
-      return;
-    }
-    if (event.key !== "Tab" || !modalEl) return;
-    const items = [...modalEl.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled)")];
-    if (items.length === 0) return;
-    const first = items[0];
-    const last = items[items.length - 1];
-    const active = document.activeElement;
-    if (event.shiftKey && (active === first || active === modalEl)) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault();
-      first.focus();
-    }
   }
 </script>
 
@@ -149,23 +118,11 @@
   </div>
 
   {#if !viewport.isWide && panelDay}
-    <div class="backdrop" role="presentation" onclick={closeModal}>
-      <div
-        class="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="날짜 아이템"
-        tabindex="-1"
-        bind:this={modalEl}
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={onModalKey}
-      >
-        <button type="button" class="sub close" aria-label="닫기" onclick={closeModal}>✕</button>
-        {#key panelDay}
-          <ItemPanel day={panelDay} />
-        {/key}
-      </div>
-    </div>
+    <Modal label="날짜 아이템" onclose={closeModal}>
+      {#key panelDay}
+        <ItemPanel day={panelDay} />
+      {/key}
+    </Modal>
   {/if}
 </div>
 
@@ -212,33 +169,7 @@
     overflow-y: auto;
   }
 
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
-    background: rgb(15 23 42 / 0.45);
-  }
-  .modal {
-    outline: none;
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-    max-height: 100%;
-    overflow-y: auto;
-    padding: 16px 14px 14px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgb(15 23 42 / 0.25);
-  }
-  .close { position: absolute; top: 8px; right: 8px; padding: 6px 10px; }
-
   @media (max-height: 520px) {
     .side { width: 440px; padding: 10px 12px; }
-    .modal { max-width: 640px; }
   }
 </style>

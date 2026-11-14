@@ -15,6 +15,8 @@
   const { label, fixed = false, wide = false, onclose, children }: Props = $props();
 
   let modalEl = $state<HTMLDivElement>();
+  // 창 안의 글자를 끌어 고르다가 밖에서 손을 떼면 브라우저가 배경에 click 을 보낸다. 배경에서 누르기 시작한 경우만 닫는다.
+  let pressedBackdrop = false;
 
   $effect(() => {
     if (!modalEl) return;
@@ -47,7 +49,12 @@
   }
 </script>
 
-<div class="backdrop" role="presentation" onclick={onclose}>
+<div
+  class="backdrop"
+  role="presentation"
+  onpointerdown={(e) => (pressedBackdrop = e.target === e.currentTarget)}
+  onclick={(e) => e.target === e.currentTarget && pressedBackdrop && onclose()}
+>
   <div
     class="modal"
     class:fixed
@@ -57,7 +64,6 @@
     aria-label={label}
     tabindex="-1"
     bind:this={modalEl}
-    onclick={(e) => e.stopPropagation()}
     onkeydown={onKey}
   >
     <button type="button" class="sub close" aria-label="닫기" onclick={onclose}>✕</button>
