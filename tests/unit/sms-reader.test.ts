@@ -185,3 +185,19 @@ describe("임시 값 읽기", () => {
     expect(guessFromSms("[Web발신] 이번 달 결제 예정 금액 안내", "2026-11-13T03:00:00Z")).toBeNull();
   });
 });
+
+describe("받은 시각의 날짜 계산", () => {
+  it("새해 아침(UTC 로는 지난해)에 받은 1월 1일 문자는 올해 날짜로 읽는다", () => {
+    // Arrange: 기기 시간대로 2026-01-01 00:30 에 받은 문자
+    const receivedAt = new Date(2026, 0, 1, 0, 30).toISOString();
+    // Act
+    const guess = guessFromSms("승인 5,600원 편의점 01/01", receivedAt);
+    // Assert
+    expect(guess?.spent_on).toBe("2026-01-01");
+  });
+
+  it("1월에 읽은 12월 문자는 지난해 날짜로 읽는다", () => {
+    const receivedAt = new Date(2026, 0, 2, 12, 0).toISOString();
+    expect(guessFromSms("승인 5,600원 편의점 12/31", receivedAt)?.spent_on).toBe("2025-12-31");
+  });
+});

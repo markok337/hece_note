@@ -1,5 +1,6 @@
 <script lang="ts">
   // 문자함의 "처리 필요" 문자 목록. 문자를 누르면 양식이 열리고, 추가하지 않을 문자는 "무시"로 치운다.
+  import { localYmd } from "../../core/dates";
   import { formatWon, plainBody, type SmsRow } from "./domain";
   import { guessFromSms } from "./sms-guess";
   import { ledger } from "./store.svelte";
@@ -48,7 +49,7 @@
             <button type="button" class="open" aria-label="{row.guess?.merchant ?? '문자'} 추가" onclick={() => (selected = row.sms)}>
               <span class="info">
                 <span class="merchant">{row.guess?.merchant ?? row.text}</span>
-                <span class="meta">{row.guess?.spent_on ?? row.sms.received_at.slice(0, 10)} · {row.method}</span>
+                <span class="meta">{row.guess?.spent_on ?? localYmd(row.sms.received_at)} · {row.method}</span>
               </span>
               {#if row.guess?.amount !== undefined}
                 <span class="amount" class:refund={row.guess.amount < 0}>{formatWon(row.guess.amount)}</span>

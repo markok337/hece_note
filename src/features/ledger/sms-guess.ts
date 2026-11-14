@@ -2,6 +2,7 @@
 // 먼저 사용자가 직접 채워 쌓은 견본의 틀에 맞춰 보고, 맞는 틀이 없으면 이미 아는 모양(한 줄 모양, 카드사 안내 모양)으로 읽는다.
 // 읽지 못한 값은 비워 두고, 읽지 못한 문자는 null 이라 양식이 빈칸으로 열린다.
 
+import { localYmd, parseYmd } from "../../core/dates";
 import { escapeRegExp, literalPattern, sampleLiterals, type SmsSample } from "./domain";
 
 /** 문자에서 읽어 낸 값. 읽지 못한 값은 undefined 로 비워 둔다. */
@@ -15,8 +16,8 @@ const pad = (value: string): string => value.padStart(2, "0");
 
 /** 문자를 받은 해를 날짜의 연도로 쓴다. 받은 달보다 한참 뒤의 달이면(1월에 온 12월 문자) 지난해로 본다. */
 function dateOf(receivedAt: string, month: string, day: string): string {
-  const year = Number(receivedAt.slice(0, 4));
-  const receivedMonth = Number(receivedAt.slice(5, 7));
+  // 받은 시각은 UTC 로 저장돼 있어서, 글자를 잘라 쓰면 한국 시각 새벽에 받은 문자가 전날·전해로 계산된다.
+  const { year, month: receivedMonth } = parseYmd(localYmd(receivedAt));
   const useYear = Number(month) - receivedMonth > 6 ? year - 1 : year;
   return `${useYear}-${pad(month)}-${pad(day)}`;
 }

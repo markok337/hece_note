@@ -29,6 +29,12 @@ export function todayYmd(): string {
   return toYmd(now.getFullYear(), now.getMonth() + 1, now.getDate());
 }
 
+/** 시각(ISO 문자열 등)을 기기 시간대의 날짜("2026-01-01")로 바꾼다. UTC 날짜와 하루 어긋날 수 있는 시각에 쓴다. */
+export function localYmd(instant: string | number | Date): string {
+  const date = new Date(instant);
+  return toYmd(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
 /** 0=일요일. */
 export function weekday(ymd: string): number {
   return new Date(dayNumber(ymd) * MS_PER_DAY).getUTCDay();
