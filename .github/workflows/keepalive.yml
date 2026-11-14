@@ -15,7 +15,20 @@ jobs:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          curl --fail --silent --show-error \
-            "${SUPABASE_URL}/rest/v1/device_pings?select=id&limit=1" \
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_KEY}" ]; then
+            echo "::error::시크릿 VITE_SUPABASE_URL 또는 VITE_SUPABASE_PUBLISHABLE_KEY 가 비어 있다."
+            exit 1
+          fi
+          # 앱(src/supabase.ts)처럼, 대시보드에서 /rest/v1/ 까지 복사한 주소도 프로젝트 루트 주소로 맞춘다.
+          BASE="${SUPABASE_URL%/}"
+          BASE="${BASE%/rest/v1}"
+          # 실패 원인을 로그에서 알 수 있도록 상태 코드를 찍는다(주소와 키는 찍지 않는다).
+          STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+            "${BASE}/rest/v1/device_pings?select=id&limit=1" \
             -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}"
+            -H "Authorization: Bearer ${SUPABASE_KEY}") || true
+          echo "HTTP ${STATUS}"
+          if [ "${STATUS}" != "200" ]; then
+            echo "::error::Supabase 조회가 실패했다(HTTP ${STATUS}). 401·403 은 키, 404 는 주소나 device_pings 테이블을 확인한다."
+            exit 1
+          fi
