@@ -6,6 +6,7 @@ import type { BudgetRow, BudgetRules, BudgetScope, Card, CategoryRow, LedgerEntr
 import {
   DEFAULT_CATEGORIES,
   SAVINGS_CATEGORY,
+  SMS_BODY_MAX,
   budgetFor,
   emptyBudgetRules,
   entriesInMonth,
@@ -401,7 +402,8 @@ class LedgerStore {
     for (const message of messages) {
       if (known.has(message.sms_key) || Date.parse(message.received_at) < cutoff) continue;
       known.add(message.sms_key);
-      fresh.push({ ...message, id: crypto.randomUUID(), status: "pending" });
+      // 모르는 모양의 긴 메시지 한 통이 DB 제약에 걸려 다른 문자까지 못 쌓게 되는 일을 막는다.
+      fresh.push({ ...message, body: message.body.slice(0, SMS_BODY_MAX), id: crypto.randomUUID(), status: "pending" });
     }
     const expired = Object.values(this.sms).filter((row) => Date.parse(row.received_at) < cutoff);
     if (fresh.length === 0 && expired.length === 0) return Promise.resolve(true);
@@ -411,8 +413,9 @@ class LedgerStore {
         for (const row of fresh) this.sms[row.id] = row;
       },
       async () => {
-        if (fresh.length > 0) await insertSms(fresh);
+        // 지우기를 먼저 해서, 쌓기가 실패해도 만료된 문자는 정리된다.
         await deleteSmsBefore(new Date(cutoff).toISOString());
+        if (fresh.length > 0) await insertSms(fresh);
       },
       "문자 저장 실패",
     );

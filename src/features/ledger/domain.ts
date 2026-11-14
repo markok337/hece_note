@@ -52,6 +52,8 @@ export function perfCount(entries: readonly LedgerEntry[], ref: MonthRef): numbe
 
 /** 문자함에 쌓아 두는 기간(일). 이보다 오래된 문자는 지운다. */
 export const SMS_KEEP_DAYS = 30;
+/** 문자함에 쌓는 본문 길이 상한(자). DB 제약과 같다. 넘으면 문자 한 통 때문에 쌓기 전체가 거절된다. */
+export const SMS_BODY_MAX = 2000;
 /** 카드 하나에 둘 수 있는 견본 수. */
 export const SAMPLES_MAX = 20;
 

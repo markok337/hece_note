@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_CATEGORIES, type CategoryRow, type SmsRow } from "../../src/features/ledger/domain";
+import { DEFAULT_CATEGORIES, SMS_BODY_MAX, type CategoryRow, type SmsRow } from "../../src/features/ledger/domain";
 
 const repo = vi.hoisted(() => ({
   fetchEntries: vi.fn(),
@@ -324,6 +324,17 @@ describe("문자함", () => {
     expect(ledger.pendingSms().map((row) => row.sms_key)).toEqual(["fresh"]);
     expect(repo.insertSms.mock.calls[0][0].map((row: SmsRow) => row.sms_key)).toEqual(["fresh"]);
     expect(repo.deleteSmsBefore).toHaveBeenCalledWith("2026-10-14T03:00:00.000Z");
+  });
+
+  it("본문이 DB 상한(2000자)보다 길면 잘라서 쌓는다", async () => {
+    await ledger.receiveSms([{ ...message("long"), body: "가".repeat(SMS_BODY_MAX + 500) }], NOW);
+    expect(repo.insertSms.mock.calls[0][0][0].body).toHaveLength(SMS_BODY_MAX);
+  });
+
+  it("쌓기가 실패해도 만료된 문자 지우기는 이미 실행됐다", async () => {
+    repo.insertSms.mockRejectedValue(new Error("거절"));
+    await ledger.receiveSms([message("fresh")], NOW);
+    expect(repo.deleteSmsBefore).toHaveBeenCalledTimes(1);
   });
 
   it("항목으로 추가하면 그 문자는 완료가 되어 다시 나오지 않는다", async () => {
