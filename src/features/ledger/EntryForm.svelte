@@ -23,6 +23,8 @@
   let amountText = $state(initial ? String(initial.amount) : "");
   let memo = $state(initial?.memo ?? "");
   let perf = $state(initial?.perf ?? false);
+  // 서버 응답을 기다리는 동안 저장·삭제를 다시 누르면 같은 지출이 한 건 더 생기므로 막는다.
+  let saving = $state(false);
 
   // 설정에서 지워진 분류나 카드로 적었던 항목을 고칠 때도 그 이름이 선택지에 남는다.
   const categories = $derived(ledger.categoryChoices(...(initial ? [initial.category] : [])));
@@ -30,6 +32,7 @@
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    if (saving) return;
     if (!spentOn) return notice.say("err", "날짜를 고른다.");
     const amount = parseAmount(amountText);
     if (!amount.ok) return notice.say("err", amount.reason);
@@ -37,12 +40,23 @@
     if (memoError) return notice.say("err", memoError);
 
     const fields = { spent_on: spentOn, method, category, amount: amount.value, memo: memo.trim(), perf };
-    const saved = entry ? await ledger.updateEntry(entry.id, fields) : await ledger.addEntry(fields);
-    if (saved) onclose();
+    saving = true;
+    try {
+      const saved = entry ? await ledger.updateEntry(entry.id, fields) : await ledger.addEntry(fields);
+      if (saved) onclose();
+    } finally {
+      saving = false;
+    }
   }
 
   async function remove(): Promise<void> {
-    if (entry && (await ledger.removeEntry(entry.id))) onclose();
+    if (!entry || saving) return;
+    saving = true;
+    try {
+      if (await ledger.removeEntry(entry.id)) onclose();
+    } finally {
+      saving = false;
+    }
   }
 </script>
 
@@ -87,7 +101,7 @@
       <ConfirmButton name="이 지출" label="삭제" confirmLabel="삭제 확인" width="92px" tall onconfirm={remove} />
     {/if}
     <span class="spacer"></span>
-    <button type="submit">저장</button>
+    <button type="submit" disabled={saving}>저장</button>
   </div>
 </form>
 
