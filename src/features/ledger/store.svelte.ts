@@ -1,5 +1,6 @@
 // 화면이 구독하는 가계부 상태(지출 항목, 카드, 분류, 예산 규칙, 문자함). 냉장고 스토어와 같은 방식이다:
 // 낙관적으로 먼저 바꾸고, 저장에 실패하면 서버 값으로 되돌린다.
+// 불러오기·쓰기 줄 세우기·실시간 알림 처리의 공통 규칙은 core/synced-store 에 있다.
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { BudgetRow, BudgetRules, BudgetScope, Card, CategoryRow, LedgerEntry, SmsRow, SmsSample, SmsStatus } from "./domain";
@@ -40,10 +41,15 @@ import {
   type RowChange,
 } from "./repo";
 import type { MonthRef } from "../../core/dates";
-import { notice } from "../../core/notice.svelte";
-import { WriteQueue } from "../../core/write-queue";
+import { SyncedStore, type Receive, type StatusHandler } from "../../core/synced-store.svelte";
 
-const NOT_LOADED_MESSAGE = "아직 불러오지 못했다. 새로고침 후 다시 시도한다.";
+interface Snapshot {
+  entries: LedgerEntry[];
+  cards: Card[];
+  categories: CategoryRow[];
+  budgets: BudgetRow[];
+  sms: SmsRow[];
+}
 
 export type NewEntry = Omit<LedgerEntry, "id" | "created_at" | "sms_key" | "perf"> & { sms_key?: string | null; perf?: boolean };
 export type NewCard = Pick<Card, "name" | "sender" | "samples">;
@@ -65,23 +71,13 @@ function defaultCategoryRows(): CategoryRow[] {
 const toMap = <T extends { id: string }>(rows: readonly T[]): Record<string, T> =>
   Object.fromEntries(rows.map((row) => [row.id, row]));
 
-class LedgerStore {
+class LedgerStore extends SyncedStore<Snapshot> {
   entries = $state<Record<string, LedgerEntry>>({});
   cards = $state<Record<string, Card>>({});
   categoryRows = $state<Record<string, CategoryRow>>({});
   budgetRows = $state<Record<string, BudgetRow>>({});
   /** 문자함. 등록한 번호로 온 최근 30일치 문자와 처리 상태. */
   sms = $state<Record<string, SmsRow>>({});
-  loaded = $state(false);
-  live = $state(false);
-
-  #channel: RealtimeChannel | null = null;
-  // 블로그·냉장고 스토어와 같은 방식이다: 쓰는 동안 들어온 알림과 불러오기는 미루고, 끝나면 한 번만 다시 불러온다.
-  #writes = new WriteQueue(() => this.#started && void this.load());
-  #epoch = 0;
-  #loadSeq = 0;
-  // start 와 stop 사이에만 true. 로그아웃 뒤에 끝난 쓰기가 다시 불러오기를 불러 로그인 화면에 오류를 띄우지 않게 한다.
-  #started = false;
 
   /** 설정 탭에서 관리하는 분류 목록. 새 항목의 선택지이고, 추가한 순서를 지킨다. 불러오기 전에는 기본 분류다. */
   get categories(): string[] {
@@ -102,67 +98,25 @@ class LedgerStore {
     return rules;
   }
 
-  async load(): Promise<void> {
-    if (this.#writes.busy) {
-      this.#writes.markDirty();
-      return;
+  protected async fetchSnapshot(): Promise<Snapshot> {
+    const [entries, cards, budgets, sms] = await Promise.all([fetchEntries(), fetchCards(), fetchBudgetRules(), fetchSms()]);
+    let categories = await fetchCategories();
+    if (categories.length === 0) {
+      await seedCategories(defaultCategoryRows());
+      categories = await fetchCategories();
     }
-    const seq = ++this.#loadSeq;
-    const epoch = this.#epoch;
-    try {
-      const [entries, cards, budgets, sms] = await Promise.all([
-        fetchEntries(),
-        fetchCards(),
-        fetchBudgetRules(),
-        fetchSms(),
-      ]);
-      let categories = await fetchCategories();
-      if (categories.length === 0) {
-        await seedCategories(defaultCategoryRows());
-        categories = await fetchCategories();
-      }
-      if (seq !== this.#loadSeq) return;
-      // 응답을 기다리는 사이 쓰기가 시작됐다면 이 값은 내 변경보다 오래됐다. 버리고 쓰기가 끝난 뒤 다시 받는다.
-      if (epoch !== this.#epoch) {
-        if (this.#writes.busy) this.#writes.markDirty();
-        else void this.load();
-        return;
-      }
-      this.entries = toMap(entries);
-      this.cards = toMap(cards);
-      this.categoryRows = toMap(categories);
-      this.budgetRows = toMap(budgets);
-      this.sms = toMap(sms);
-      this.loaded = true;
-    } catch (err) {
-      notice.say("err", `불러오기 실패: ${(err as Error).message}`);
-    }
+    return { entries, cards, categories, budgets, sms };
   }
 
-  async start(): Promise<void> {
-    this.#started = true;
-    await this.load();
-    this.#channel = subscribeLedger({
-      onEntry: (change) => this.#receive(() => applyChange(this.entries, change)),
-      onCard: (change) => this.#receive(() => applyChange(this.cards, change)),
-      onCategory: (change) => this.#receive(() => applyChange(this.categoryRows, change)),
-      onBudget: (change) => this.#receive(() => applyChange(this.budgetRows, change)),
-      onSms: (change) => this.#receive(() => applyChange(this.sms, change)),
-      onStatus: (isLive) => {
-        this.live = isLive;
-        // 끊겼다 다시 붙으면 그사이 놓친 변경을 다시 가져온다.
-        if (isLive) void this.load();
-      },
-    });
+  protected applySnapshot({ entries, cards, categories, budgets, sms }: Snapshot): void {
+    this.entries = toMap(entries);
+    this.cards = toMap(cards);
+    this.categoryRows = toMap(categories);
+    this.budgetRows = toMap(budgets);
+    this.sms = toMap(sms);
   }
 
-  async stop(): Promise<void> {
-    this.#started = false;
-    if (this.#channel) await unsubscribe(this.#channel);
-    this.#channel = null;
-    this.live = false;
-    this.loaded = false;
-    this.#loadSeq += 1; // 로그아웃 뒤에 늦게 도착한 응답이 화면을 채우지 않게 한다.
+  protected clearData(): void {
     this.entries = {};
     this.cards = {};
     this.categoryRows = {};
@@ -170,20 +124,19 @@ class LedgerStore {
     this.sms = {};
   }
 
-  #receive(apply: () => void): void {
-    if (this.#writes.busy) this.#writes.markDirty();
-    else apply();
+  protected subscribe(receive: Receive, onStatus: StatusHandler): RealtimeChannel {
+    return subscribeLedger({
+      onEntry: (change) => receive(() => applyChange(this.entries, change)),
+      onCard: (change) => receive(() => applyChange(this.cards, change)),
+      onCategory: (change) => receive(() => applyChange(this.categoryRows, change)),
+      onBudget: (change) => receive(() => applyChange(this.budgetRows, change)),
+      onSms: (change) => receive(() => applyChange(this.sms, change)),
+      onStatus,
+    });
   }
 
-  /** 화면을 먼저 바꾸고 서버에는 누른 순서대로 보낸다. 못 불러온 채 쓰면 서버 내용을 덮을 수 있어 막는다. */
-  #write(apply: () => void, task: () => Promise<void>, failure: string): Promise<boolean> {
-    if (!this.loaded) {
-      notice.say("err", NOT_LOADED_MESSAGE);
-      return Promise.resolve(false);
-    }
-    this.#epoch += 1;
-    apply();
-    return this.#writes.run(task, (err) => notice.say("err", `${failure}: ${(err as Error).message}`));
+  protected unsubscribe(channel: RealtimeChannel): Promise<void> {
+    return unsubscribe(channel);
   }
 
   /** 한 달의 항목. 최근 것이 먼저. */
@@ -235,7 +188,7 @@ class LedgerStore {
   addEntry(input: NewEntry): Promise<boolean> {
     const entry = this.#newEntry(input);
     const done = this.#doneRows([entry.sms_key]);
-    return this.#write(
+    return this.write(
       () => {
         this.entries[entry.id] = entry;
         for (const row of done) this.sms[row.id] = row;
@@ -253,7 +206,7 @@ class LedgerStore {
     const added = inputs.map((input) => this.#newEntry(input));
     if (added.length === 0) return Promise.resolve(true);
     const done = this.#doneRows(added.map((entry) => entry.sms_key));
-    return this.#write(
+    return this.write(
       () => {
         for (const entry of added) this.entries[entry.id] = entry;
         for (const row of done) this.sms[row.id] = row;
@@ -270,7 +223,7 @@ class LedgerStore {
     const current = this.entries[id];
     if (!current) return Promise.resolve(false);
     const next = { ...current, ...patch };
-    return this.#write(
+    return this.write(
       () => (this.entries[id] = next),
       () => upsertEntry(next),
       "지출 저장 실패",
@@ -279,7 +232,7 @@ class LedgerStore {
 
   removeEntry(id: string): Promise<boolean> {
     if (!(id in this.entries)) return Promise.resolve(false);
-    return this.#write(
+    return this.write(
       () => delete this.entries[id],
       () => deleteEntry(id),
       "지출 삭제 실패",
@@ -288,7 +241,7 @@ class LedgerStore {
 
   addCard(input: NewCard): Promise<boolean> {
     const card: Card = { ...input, id: crypto.randomUUID(), created_at: new Date().toISOString() };
-    return this.#write(
+    return this.write(
       () => (this.cards[card.id] = card),
       () => upsertCard(card),
       "카드 추가 실패",
@@ -297,7 +250,7 @@ class LedgerStore {
 
   removeCard(id: string): Promise<boolean> {
     if (!(id in this.cards)) return Promise.resolve(false);
-    return this.#write(
+    return this.write(
       () => delete this.cards[id],
       () => deleteCard(id),
       "카드 삭제 실패",
@@ -309,7 +262,7 @@ class LedgerStore {
     const card = this.cards[cardId];
     if (!card) return Promise.resolve(false);
     const next: Card = { ...card, samples: [...card.samples, sample] };
-    return this.#write(
+    return this.write(
       () => (this.cards[card.id] = next),
       () => upsertCard(next),
       "견본 저장 실패",
@@ -321,7 +274,7 @@ class LedgerStore {
     if (this.categories.includes(name)) return Promise.resolve(false);
     const position = Math.max(-1, ...Object.values(this.categoryRows).map((row) => row.position)) + 1;
     const row: CategoryRow = { id: crypto.randomUUID(), name, position, created_at: new Date().toISOString() };
-    return this.#write(
+    return this.write(
       () => (this.categoryRows[row.id] = row),
       () => upsertCategory(row),
       "분류 추가 실패",
@@ -333,7 +286,7 @@ class LedgerStore {
     if (name === SAVINGS_CATEGORY) return Promise.resolve(false);
     const row = Object.values(this.categoryRows).find((candidate) => candidate.name === name);
     if (!row || Object.keys(this.categoryRows).length <= 1) return Promise.resolve(false);
-    return this.#write(
+    return this.write(
       () => delete this.categoryRows[row.id],
       () => deleteCategory(row.id),
       "분류 삭제 실패",
@@ -351,7 +304,7 @@ class LedgerStore {
       .map((name, position) => ({ ...byName.get(name)!, position }))
       .filter((row) => row.position !== byName.get(row.name)!.position);
     if (changed.length === 0) return Promise.resolve(false);
-    return this.#write(
+    return this.write(
       () => {
         for (const row of changed) this.categoryRows[row.id] = row;
       },
@@ -377,7 +330,7 @@ class LedgerStore {
   setBudget(scope: BudgetScope, amount: number, ref: MonthRef): Promise<boolean> {
     const month = scope === "base" ? null : `${monthKey(ref)}-01`;
     const row: BudgetRow = { id: this.#budgetRow(scope, month)?.id ?? crypto.randomUUID(), scope, month, amount };
-    return this.#write(
+    return this.write(
       () => (this.budgetRows[row.id] = row),
       () => upsertBudgetRule(row),
       "예산 저장 실패",
@@ -388,7 +341,7 @@ class LedgerStore {
   removeBudgetRule(scope: Exclude<BudgetScope, "base">, key: string): Promise<boolean> {
     const row = this.#budgetRow(scope, `${key}-01`);
     if (!row) return Promise.resolve(false);
-    return this.#write(
+    return this.write(
       () => delete this.budgetRows[row.id],
       () => deleteBudgetRule(row.id),
       "예산 삭제 실패",
@@ -411,7 +364,7 @@ class LedgerStore {
     }
     const expired = Object.values(this.sms).filter((row) => Date.parse(row.received_at) < cutoff);
     if (fresh.length === 0 && expired.length === 0) return Promise.resolve(true);
-    return this.#write(
+    return this.write(
       () => {
         for (const row of expired) delete this.sms[row.id];
         for (const row of fresh) this.sms[row.id] = row;
@@ -429,7 +382,7 @@ class LedgerStore {
   ignoreSms(ids: readonly string[]): Promise<boolean> {
     const rows = ids.map((id) => this.sms[id]).filter((row): row is SmsRow => !!row && row.status === "pending");
     if (rows.length === 0) return Promise.resolve(true);
-    return this.#write(
+    return this.write(
       () => {
         for (const row of rows) this.sms[row.id] = { ...row, status: "ignored" };
       },
@@ -442,7 +395,7 @@ class LedgerStore {
   resetIgnored(): Promise<boolean> {
     const rows = Object.values(this.sms).filter((row) => row.status === "ignored");
     if (rows.length === 0) return Promise.resolve(true);
-    return this.#write(
+    return this.write(
       () => {
         for (const row of rows) this.sms[row.id] = { ...row, status: "pending" };
       },

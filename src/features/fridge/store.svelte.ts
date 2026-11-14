@@ -1,4 +1,5 @@
 // 화면이 구독하는 냉장고 상태(재료 + 구매목록 + 식단). 낙관적으로 먼저 바꾸고, 저장에 실패하면 서버 값으로 되돌린다.
+// 불러오기·쓰기 줄 세우기·실시간 알림 처리의 공통 규칙은 core/synced-store 에 있다.
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
@@ -26,10 +27,13 @@ import {
   upsertShopping,
   type RowChange,
 } from "./repo";
-import { notice } from "../../core/notice.svelte";
-import { WriteQueue } from "../../core/write-queue";
+import { SyncedStore, type Receive, type StatusHandler } from "../../core/synced-store.svelte";
 
-const NOT_LOADED_MESSAGE = "아직 불러오지 못했다. 새로고침 후 다시 시도한다.";
+interface Snapshot {
+  items: FridgeItem[];
+  shopping: ShoppingItem[];
+  meals: Meal[];
+}
 
 export interface NewItem {
   compartment: Compartment;
@@ -44,21 +48,11 @@ function applyChange<T>(map: Record<string, T>, change: RowChange<T>): void {
   else if (change.row) map[change.id] = change.row;
 }
 
-class FridgeStore {
+class FridgeStore extends SyncedStore<Snapshot> {
   items = $state<Record<string, FridgeItem>>({});
   shopping = $state<Record<string, ShoppingItem>>({});
   /** 날짜("2026-11-08")별 식단. 점심·저녁이 모두 빈 날은 없다. */
   meals = $state<Record<string, Meal>>({});
-  loaded = $state(false);
-  live = $state(false);
-
-  #channel: RealtimeChannel | null = null;
-  // 블로그 스토어와 같은 방식이다: 쓰는 동안 들어온 알림과 불러오기는 미루고, 끝나면 한 번만 다시 불러온다.
-  #writes = new WriteQueue(() => this.#started && void this.load());
-  #epoch = 0;
-  #loadSeq = 0;
-  // start 와 stop 사이에만 true. 로그아웃 뒤에 끝난 쓰기가 다시 불러오기를 불러 로그인 화면에 오류를 띄우지 않게 한다.
-  #started = false;
 
   /** 한 칸의 재료. 오래된 것이 먼저. */
   itemsIn(compartment: Compartment): FridgeItem[] {
@@ -80,77 +74,39 @@ class FridgeStore {
     return Object.values(this.shopping).filter((item) => !item.checked).length;
   }
 
-  async load(): Promise<void> {
-    if (this.#writes.busy) {
-      this.#writes.markDirty();
-      return;
-    }
-    const seq = ++this.#loadSeq;
-    const epoch = this.#epoch;
-    try {
-      const [items, shopping, meals] = await Promise.all([fetchItems(), fetchShopping(), fetchMeals()]);
-      if (seq !== this.#loadSeq) return;
-      // 응답을 기다리는 사이 쓰기가 시작됐다면 이 값은 내 변경보다 오래됐다. 버리고 쓰기가 끝난 뒤 다시 받는다.
-      if (epoch !== this.#epoch) {
-        if (this.#writes.busy) this.#writes.markDirty();
-        else void this.load();
-        return;
-      }
-      this.items = Object.fromEntries(items.map((row) => [row.id, row]));
-      this.shopping = Object.fromEntries(shopping.map((row) => [row.id, row]));
-      this.meals = Object.fromEntries(meals.map((row) => [row.day, row]));
-      this.loaded = true;
-    } catch (err) {
-      notice.say("err", `불러오기 실패: ${(err as Error).message}`);
-    }
+  protected async fetchSnapshot(): Promise<Snapshot> {
+    const [items, shopping, meals] = await Promise.all([fetchItems(), fetchShopping(), fetchMeals()]);
+    return { items, shopping, meals };
   }
 
-  async start(): Promise<void> {
-    this.#started = true;
-    await this.load();
-    this.#channel = subscribeFridge({
-      onItem: (change) => this.#receive(() => applyChange(this.items, change)),
-      onShopping: (change) => this.#receive(() => applyChange(this.shopping, change)),
-      onMeal: (change) => this.#receive(() => applyChange(this.meals, change)),
-      onStatus: (isLive) => {
-        this.live = isLive;
-        // 끊겼다 다시 붙으면 그사이 놓친 변경을 다시 가져온다.
-        if (isLive) void this.load();
-      },
-    });
+  protected applySnapshot({ items, shopping, meals }: Snapshot): void {
+    this.items = Object.fromEntries(items.map((row) => [row.id, row]));
+    this.shopping = Object.fromEntries(shopping.map((row) => [row.id, row]));
+    this.meals = Object.fromEntries(meals.map((row) => [row.day, row]));
   }
 
-  async stop(): Promise<void> {
-    this.#started = false;
-    if (this.#channel) await unsubscribe(this.#channel);
-    this.#channel = null;
-    this.live = false;
-    this.loaded = false;
-    this.#loadSeq += 1; // 로그아웃 뒤에 늦게 도착한 응답이 화면을 채우지 않게 한다.
+  protected clearData(): void {
     this.items = {};
     this.shopping = {};
     this.meals = {};
   }
 
-  #receive(apply: () => void): void {
-    if (this.#writes.busy) this.#writes.markDirty();
-    else apply();
+  protected subscribe(receive: Receive, onStatus: StatusHandler): RealtimeChannel {
+    return subscribeFridge({
+      onItem: (change) => receive(() => applyChange(this.items, change)),
+      onShopping: (change) => receive(() => applyChange(this.shopping, change)),
+      onMeal: (change) => receive(() => applyChange(this.meals, change)),
+      onStatus,
+    });
   }
 
-  /** 화면을 먼저 바꾸고 서버에는 누른 순서대로 보낸다. 못 불러온 채 쓰면 서버 내용을 덮을 수 있어 막는다. */
-  #write(apply: () => void, task: () => Promise<void>, failure: string): Promise<boolean> {
-    if (!this.loaded) {
-      notice.say("err", NOT_LOADED_MESSAGE);
-      return Promise.resolve(false);
-    }
-    this.#epoch += 1;
-    apply();
-    return this.#writes.run(task, (err) => notice.say("err", `${failure}: ${(err as Error).message}`));
+  protected unsubscribe(channel: RealtimeChannel): Promise<void> {
+    return unsubscribe(channel);
   }
 
   addItem(input: NewItem): Promise<boolean> {
     const item: FridgeItem = { ...input, id: crypto.randomUUID(), created_at: new Date().toISOString() };
-    return this.#write(
+    return this.write(
       () => (this.items[item.id] = item),
       () => upsertItem(item),
       "재료 추가 실패",
@@ -158,7 +114,7 @@ class FridgeStore {
   }
 
   removeItem(id: string): Promise<boolean> {
-    return this.#write(
+    return this.write(
       () => delete this.items[id],
       () => deleteItem(id),
       "재료 삭제 실패",
@@ -182,7 +138,7 @@ class FridgeStore {
       return Promise.resolve(false);
     }
     const next = { ...current, ...patch };
-    return this.#write(
+    return this.write(
       () => (this.items[id] = next),
       () => upsertItem(next),
       failure,
@@ -198,13 +154,13 @@ class FridgeStore {
     const next: Meal = { ...current, [slot]: text.trim() };
     if (next[slot] === current[slot]) return Promise.resolve(false);
     if (isEmptyMeal(next)) {
-      return this.#write(
+      return this.write(
         () => delete this.meals[day],
         () => deleteMeal(day),
         "식단 삭제 실패",
       );
     }
-    return this.#write(
+    return this.write(
       () => (this.meals[day] = next),
       () => upsertMeal(next),
       "식단 저장 실패",
@@ -213,7 +169,7 @@ class FridgeStore {
 
   addShopping(name: string): Promise<boolean> {
     const item: ShoppingItem = { id: crypto.randomUUID(), name, checked: false, created_at: new Date().toISOString() };
-    return this.#write(
+    return this.write(
       () => (this.shopping[item.id] = item),
       () => upsertShopping(item),
       "구매목록 추가 실패",
@@ -224,7 +180,7 @@ class FridgeStore {
     const current = this.shopping[id];
     if (!current) return Promise.resolve(false);
     const next = { ...current, checked: !current.checked };
-    return this.#write(
+    return this.write(
       () => (this.shopping[id] = next),
       () => upsertShopping(next),
       "구매목록 저장 실패",
@@ -232,7 +188,7 @@ class FridgeStore {
   }
 
   removeShopping(id: string): Promise<boolean> {
-    return this.#write(
+    return this.write(
       () => delete this.shopping[id],
       () => deleteShopping(id),
       "구매목록 삭제 실패",
@@ -241,7 +197,7 @@ class FridgeStore {
 
   /** 체크한 항목을 한꺼번에 지운다. */
   clearChecked(): Promise<boolean> {
-    return this.#write(
+    return this.write(
       () => {
         for (const item of Object.values(this.shopping)) if (item.checked) delete this.shopping[item.id];
       },
