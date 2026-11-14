@@ -102,3 +102,20 @@ describe("불러오기와 쓰기가 겹칠 때", () => {
     expect(blog.stored("2026-11-10")).toBeNull();
   });
 });
+
+describe("로그아웃", () => {
+  it("로그아웃 뒤에 실패로 끝난 쓰기는 다시 불러오지 않는다", async () => {
+    // Arrange: 쓰기가 서버 응답을 기다리는 사이에 로그아웃한다.
+    await blog.start();
+    let fail!: (err: Error) => void;
+    repo.upsertDay.mockReturnValueOnce(new Promise<void>((_, reject) => (fail = reject)));
+    const saving = blog.patch("2026-11-10", { category: "맛집,여행" });
+    await blog.stop();
+    repo.fetchDays.mockClear();
+    // Act
+    fail(new Error("연결 끊김"));
+    await saving;
+    // Assert
+    expect(repo.fetchDays).not.toHaveBeenCalled();
+  });
+});

@@ -178,3 +178,20 @@ describe("로그아웃", () => {
     expect(fridge.loaded).toBe(false);
   });
 });
+
+describe("로그아웃", () => {
+  it("로그아웃 뒤에 실패로 끝난 쓰기는 다시 불러오지 않는다", async () => {
+    // Arrange: 쓰기가 서버 응답을 기다리는 사이에 로그아웃한다.
+    await fridge.start();
+    let fail!: (err: Error) => void;
+    repo.upsertShopping.mockReturnValueOnce(new Promise<void>((_, reject) => (fail = reject)));
+    const saving = fridge.addShopping("우유");
+    await fridge.stop();
+    repo.fetchItems.mockClear();
+    // Act
+    fail(new Error("연결 끊김"));
+    await saving;
+    // Assert
+    expect(repo.fetchItems).not.toHaveBeenCalled();
+  });
+});

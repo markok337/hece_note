@@ -26,10 +26,12 @@ class BlogStore {
 
   #channel: RealtimeChannel | null = null;
   // 쓰는 동안 들어온 실시간 알림은 내 최신 상태보다 오래된 값일 수 있어 무시하고, 끝나면 한 번 다시 불러온다.
-  #writes = new WriteQueue(() => void this.load());
+  #writes = new WriteQueue(() => this.#started && void this.load());
   // 불러오기 응답이 오래된 것인지 가려내는 표. 쓰기를 시작할 때마다 epoch 가, 불러오기를 시작할 때마다 loadSeq 가 오른다.
   #epoch = 0;
   #loadSeq = 0;
+  // start 와 stop 사이에만 true. 로그아웃 뒤에 끝난 쓰기가 다시 불러오기를 불러 로그인 화면에 오류를 띄우지 않게 한다.
+  #started = false;
 
   /** 저장된 아이템. 한 번도 건드린 적 없는 날짜는 null. */
   stored(day: string): BlogDay | null {
@@ -69,6 +71,7 @@ class BlogStore {
   }
 
   async start(): Promise<void> {
+    this.#started = true;
     await this.load();
     this.#channel = subscribeDays(
       (change) => {
@@ -92,6 +95,7 @@ class BlogStore {
   }
 
   async stop(): Promise<void> {
+    this.#started = false;
     if (this.#channel) await unsubscribe(this.#channel);
     this.#channel = null;
     this.live = false;

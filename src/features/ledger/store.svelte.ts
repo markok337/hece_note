@@ -77,9 +77,11 @@ class LedgerStore {
 
   #channel: RealtimeChannel | null = null;
   // 블로그·냉장고 스토어와 같은 방식이다: 쓰는 동안 들어온 알림과 불러오기는 미루고, 끝나면 한 번만 다시 불러온다.
-  #writes = new WriteQueue(() => void this.load());
+  #writes = new WriteQueue(() => this.#started && void this.load());
   #epoch = 0;
   #loadSeq = 0;
+  // start 와 stop 사이에만 true. 로그아웃 뒤에 끝난 쓰기가 다시 불러오기를 불러 로그인 화면에 오류를 띄우지 않게 한다.
+  #started = false;
 
   /** 설정 탭에서 관리하는 분류 목록. 새 항목의 선택지이고, 추가한 순서를 지킨다. 불러오기 전에는 기본 분류다. */
   get categories(): string[] {
@@ -138,6 +140,7 @@ class LedgerStore {
   }
 
   async start(): Promise<void> {
+    this.#started = true;
     await this.load();
     this.#channel = subscribeLedger({
       onEntry: (change) => this.#receive(() => applyChange(this.entries, change)),
@@ -154,6 +157,7 @@ class LedgerStore {
   }
 
   async stop(): Promise<void> {
+    this.#started = false;
     if (this.#channel) await unsubscribe(this.#channel);
     this.#channel = null;
     this.live = false;

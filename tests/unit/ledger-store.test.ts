@@ -395,3 +395,19 @@ describe("견본", () => {
     expect(repo.upsertCard).not.toHaveBeenCalled();
   });
 });
+
+describe("로그아웃", () => {
+  it("로그아웃 뒤에 실패로 끝난 쓰기는 다시 불러오지 않는다", async () => {
+    // Arrange: 쓰기가 서버 응답을 기다리는 사이에 로그아웃한다.
+    let fail!: (err: Error) => void;
+    repo.upsertEntry.mockReturnValueOnce(new Promise<void>((_, reject) => (fail = reject)));
+    const saving = ledger.addEntry(FIELDS);
+    await ledger.stop();
+    repo.fetchEntries.mockClear();
+    // Act
+    fail(new Error("연결 끊김"));
+    await saving;
+    // Assert
+    expect(repo.fetchEntries).not.toHaveBeenCalled();
+  });
+});
