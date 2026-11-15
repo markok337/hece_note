@@ -73,8 +73,8 @@
   async function startImport(): Promise<void> {
     if (!canReadSms()) {
       // 문자를 읽는 건 폰 앱뿐이지만, 폰이 쌓아 둔 문자함은 어느 기기에서든 열어 처리할 수 있다.
-      if (ledger.pendingSms().length === 0) notice.say("ok", "처리할 문자가 없다. 문자는 안드로이드 앱에서 불러오면 여기에 쌓인다.");
-      else inboxOpen = true;
+      // 비어 있어도 알림만 띄우지 않고 서버와 연결된 문자함 창을 연다(창 안에 "처리할 문자가 없다"가 보인다).
+      inboxOpen = true;
       return;
     }
     if (ledger.cardList().length === 0) {
