@@ -42,34 +42,10 @@
   {/key}
 {:else}
   <section class="inbox">
-    <h2>처리 필요 {rows.length}건</h2>
-
-    {#if rows.length === 0}
-      <p class="empty">처리할 문자가 없다.</p>
-    {:else}
+    {#if showIgnored && ignoredRows.length > 0}
+      <h2>무시한 문자 {ignoredRows.length}건</h2>
+      <button type="button" class="sub" onclick={() => ledger.resetIgnored()}>모두 되돌리기</button>
       <ul class="rows">
-        {#each rows as row (row.sms.id)}
-          <li>
-            <button type="button" class="open" aria-label="{row.guess?.merchant ?? '문자'} 추가" onclick={() => (selected = row.sms)}>
-              <span class="info">
-                <span class="merchant">{row.guess?.merchant ?? row.text}</span>
-                <span class="meta">{row.guess?.spent_on ?? localYmd(row.sms.received_at)} · {row.method}</span>
-              </span>
-              {#if row.guess?.amount !== undefined}
-                <span class="amount" class:refund={row.guess.amount < 0}>{formatWon(row.guess.amount)}</span>
-              {/if}
-            </button>
-            <button type="button" class="sub ignore" aria-label="무시" onclick={() => ledger.ignoreSms([row.sms.id])}>무시</button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-
-    {#if ledger.ignoredCount > 0}
-      <div class="ignored-panel">
-        {#if showIgnored}
-          <button type="button" class="sub" onclick={() => ledger.resetIgnored()}>모두 되돌리기</button>
-          <ul class="rows ignored-rows">
           {#each ignoredRows as row (row.sms.id)}
             <li>
               <span class="open">
@@ -84,10 +60,33 @@
               <button type="button" class="sub ignore" onclick={() => ledger.restoreIgnoredSms([row.sms.id])}>되돌리기</button>
             </li>
           {/each}
-          </ul>
-        {/if}
-        <button type="button" class="sub" aria-expanded={showIgnored} onclick={() => (showIgnored = !showIgnored)}>무시한 문자 {ledger.ignoredCount}건 {showIgnored ? '닫기' : '보기'}</button>
-      </div>
+      </ul>
+    {:else}
+      <h2>처리 필요 {rows.length}건</h2>
+      {#if rows.length === 0}
+        <p class="empty">처리할 문자가 없다.</p>
+      {:else}
+        <ul class="rows">
+          {#each rows as row (row.sms.id)}
+            <li>
+              <button type="button" class="open" aria-label="{row.guess?.merchant ?? '문자'} 추가" onclick={() => (selected = row.sms)}>
+                <span class="info">
+                  <span class="merchant">{row.guess?.merchant ?? row.text}</span>
+                  <span class="meta">{row.guess?.spent_on ?? localYmd(row.sms.received_at)} · {row.method}</span>
+                </span>
+                {#if row.guess?.amount !== undefined}
+                  <span class="amount" class:refund={row.guess.amount < 0}>{formatWon(row.guess.amount)}</span>
+                {/if}
+              </button>
+              <button type="button" class="sub ignore" aria-label="무시" onclick={() => ledger.ignoreSms([row.sms.id])}>무시</button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    {/if}
+
+    {#if ledger.ignoredCount > 0}
+      <button type="button" class="sub toggle" aria-expanded={showIgnored} onclick={() => (showIgnored = !showIgnored)}>무시한 문자 {ledger.ignoredCount}건 {showIgnored ? '닫기' : '보기'}</button>
     {/if}
   </section>
 {/if}
@@ -98,8 +97,7 @@
   .empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
   .rows { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
-  .ignored-panel { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
-  .ignored-rows { flex: 0 1 auto; max-height: 40vh; }
+  .toggle { flex-shrink: 0; margin-top: auto; }
   li { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-top: 1px solid var(--line); }
   /* 줄 하나 전체가 양식을 여는 버튼이다. */
   .open {
