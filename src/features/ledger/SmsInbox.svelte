@@ -17,15 +17,17 @@
   let showIgnored = $state(false);
 
   const cards = $derived(ledger.cardList());
-  const ignoredRows = $derived(ledger.ignoredSms());
-  const rows = $derived(
-    ledger.pendingSms().map((sms) => ({
+  function displayRow(sms: SmsRow) {
+    const card = cards.find((item) => item.sender === sms.sender);
+    return {
       sms,
       text: plainBody(sms.body),
-      method: cards.find((card) => card.sender === sms.sender)?.name ?? sms.sender,
-      guess: guessFromSms(plainBody(sms.body), sms.received_at, cards.find((card) => card.sender === sms.sender)?.samples ?? []),
-    })),
-  );
+      method: card?.name ?? sms.sender,
+      guess: guessFromSms(plainBody(sms.body), sms.received_at, card?.samples ?? []),
+    };
+  }
+  const rows = $derived(ledger.pendingSms().map(displayRow));
+  const ignoredRows = $derived(ledger.ignoredSms().map(displayRow));
 
   /** 양식을 닫고 목록으로 돌아간다. 처리할 문자가 더 없으면 창을 닫는다. */
   function back(): void {
@@ -64,21 +66,28 @@
     {/if}
 
     {#if ledger.ignoredCount > 0}
-      <button type="button" class="sub" aria-expanded={showIgnored} onclick={() => (showIgnored = !showIgnored)}>무시한 문자 {ledger.ignoredCount}건 {showIgnored ? '닫기' : '보기'}</button>
-      {#if showIgnored}
-        <ul class="rows ignored-rows">
-          {#each ignoredRows as sms (sms.id)}
+      <div class="ignored-panel">
+        {#if showIgnored}
+          <button type="button" class="sub" onclick={() => ledger.resetIgnored()}>모두 되돌리기</button>
+          <ul class="rows ignored-rows">
+          {#each ignoredRows as row (row.sms.id)}
             <li>
-              <span class="info">
-                <span class="merchant">{plainBody(sms.body)}</span>
-                <span class="meta">{localYmd(sms.received_at)} · {cards.find((card) => card.sender === sms.sender)?.name ?? sms.sender}</span>
+              <span class="open">
+                <span class="info">
+                  <span class="merchant">{row.guess?.merchant ?? row.text}</span>
+                  <span class="meta">{row.guess?.spent_on ?? localYmd(row.sms.received_at)} · {row.method}</span>
+                </span>
+                {#if row.guess?.amount !== undefined}
+                  <span class="amount" class:refund={row.guess.amount < 0}>{formatWon(row.guess.amount)}</span>
+                {/if}
               </span>
-              <button type="button" class="sub ignore" onclick={() => ledger.restoreIgnoredSms([sms.id])}>되돌리기</button>
+              <button type="button" class="sub ignore" onclick={() => ledger.restoreIgnoredSms([row.sms.id])}>되돌리기</button>
             </li>
           {/each}
-        </ul>
-        <button type="button" class="sub" onclick={() => ledger.resetIgnored()}>모두 되돌리기</button>
-      {/if}
+          </ul>
+        {/if}
+        <button type="button" class="sub" aria-expanded={showIgnored} onclick={() => (showIgnored = !showIgnored)}>무시한 문자 {ledger.ignoredCount}건 {showIgnored ? '닫기' : '보기'}</button>
+      </div>
     {/if}
   </section>
 {/if}
@@ -89,7 +98,8 @@
   .empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
   .rows { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
-  .ignored-rows { flex: 0 1 auto; }
+  .ignored-panel { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+  .ignored-rows { flex: 0 1 auto; max-height: 40vh; }
   li { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-top: 1px solid var(--line); }
   /* 줄 하나 전체가 양식을 여는 버튼이다. */
   .open {
