@@ -165,6 +165,12 @@ class LedgerStore extends SyncedStore<Snapshot> {
     return Object.values(this.sms).filter((row) => row.status === "ignored").length;
   }
 
+  ignoredSms(): SmsRow[] {
+    return Object.values(this.sms)
+      .filter((row) => row.status === "ignored")
+      .sort((a, b) => Date.parse(b.received_at) - Date.parse(a.received_at) || a.id.localeCompare(b.id));
+  }
+
   /** 문자함에서 keys 에 해당하는 처리 필요 줄을 완료로 바꾼 새 줄들. */
   #doneRows(keys: readonly (string | null | undefined)[]): SmsRow[] {
     const wanted = new Set(keys.filter((key): key is string => !!key));
@@ -401,6 +407,18 @@ class LedgerStore extends SyncedStore<Snapshot> {
       },
       () => resetIgnoredSms(),
       "무시 초기화 실패",
+    );
+  }
+
+  restoreIgnoredSms(ids: readonly string[]): Promise<boolean> {
+    const rows = ids.map((id) => this.sms[id]).filter((row): row is SmsRow => !!row && row.status === "ignored");
+    if (rows.length === 0) return Promise.resolve(true);
+    return this.write(
+      () => {
+        for (const row of rows) this.sms[row.id] = { ...row, status: "pending" };
+      },
+      () => setSmsStatus(rows.map((row) => row.sms_key), "pending"),
+      "문자 복구 실패",
     );
   }
 }
