@@ -27,6 +27,8 @@
   let memo = $state(guess?.merchant ?? "");
   let category = $state("");
   let perf = $state(false);
+  let olive3000 = $state(false);
+  let olive4000 = $state(false);
 
   const methods = $derived([...new Set([CASH, ...ledger.cardList().map((item) => item.name)])]);
   const categories = $derived(ledger.categories);
@@ -51,6 +53,8 @@
         memo: memo.trim(),
         sms_key: initial.sms_key,
         perf,
+        olive_3000: olive3000,
+        olive_4000: olive4000,
       });
       if (!saved) return;
       const sample = card ? newSample(text, { spent_on: spentOn, amount: amount.value, merchant: memo }, guess, card.samples) : null;
@@ -104,10 +108,11 @@
       {/each}
     </select>
   </label>
-  <label class="check">
-    <input type="checkbox" bind:checked={perf} />
-    <span>실적으로 센다</span>
-  </label>
+  <div class="checks">
+    <label class="check"><input type="checkbox" bind:checked={perf} /><span>신한 실적</span></label>
+    <label class="check olive"><input type="checkbox" bind:checked={olive3000} /><span>올영 3000원</span></label>
+    <label class="check olive"><input type="checkbox" bind:checked={olive4000} /><span>올영 4000원</span></label>
+  </div>
 
   <div class="actions">
     <button type="button" class="sub" onclick={ignore}>무시</button>
@@ -136,7 +141,9 @@
   label input, label select { flex: 1; min-width: 0; }
   label.check { gap: 6px; }
   label.check input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; }
+  label.olive input { accent-color: #16803c; }
   label.check span { flex: 0 1 auto; }
+  .checks { display: flex; flex-wrap: wrap; gap: 8px 14px; }
   select {
     padding: 12px;
     font-size: 1rem;

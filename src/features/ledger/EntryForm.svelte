@@ -23,6 +23,8 @@
   let amountText = $state(initial ? String(initial.amount) : "");
   let memo = $state(initial?.memo ?? "");
   let perf = $state(initial?.perf ?? false);
+  let olive3000 = $state(initial?.olive_3000 ?? false);
+  let olive4000 = $state(initial?.olive_4000 ?? false);
   // 서버 응답을 기다리는 동안 저장·삭제를 다시 누르면 같은 지출이 한 건 더 생기므로 막는다.
   let saving = $state(false);
 
@@ -39,7 +41,7 @@
     const memoError = validateMemo(memo);
     if (memoError) return notice.say("err", memoError);
 
-    const fields = { spent_on: spentOn, method, category, amount: amount.value, memo: memo.trim(), perf };
+    const fields = { spent_on: spentOn, method, category, amount: amount.value, memo: memo.trim(), perf, olive_3000: olive3000, olive_4000: olive4000 };
     saving = true;
     try {
       const saved = entry ? await ledger.updateEntry(entry.id, fields) : await ledger.addEntry(fields);
@@ -91,10 +93,11 @@
     <span>메모</span>
     <input bind:value={memo} maxlength={MEMO_MAX} placeholder="선택" />
   </label>
-  <label class="check">
-    <input type="checkbox" bind:checked={perf} />
-    <span>실적으로 센다</span>
-  </label>
+  <div class="checks">
+    <label class="check"><input type="checkbox" bind:checked={perf} /><span>신한 실적</span></label>
+    <label class="check olive"><input type="checkbox" bind:checked={olive3000} /><span>올영 3000원</span></label>
+    <label class="check olive"><input type="checkbox" bind:checked={olive4000} /><span>올영 4000원</span></label>
+  </div>
 
   <div class="actions">
     {#if entry}
@@ -113,7 +116,9 @@
   label input, label select { flex: 1; min-width: 0; }
   label.check { gap: 6px; }
   label.check input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; }
+  label.olive input { accent-color: #16803c; }
   label.check span { flex: 0 1 auto; }
+  .checks { display: flex; flex-wrap: wrap; gap: 8px 14px; }
   select {
     padding: 12px;
     font-size: 1rem;

@@ -39,6 +39,8 @@ export interface LedgerEntry {
   sms_key: string | null;
   /** 이 달의 카드 실적으로 세는 지출이면 true. */
   perf: boolean;
+  olive_3000: boolean;
+  olive_4000: boolean;
   created_at: string;
 }
 
@@ -48,6 +50,12 @@ export const PERF_GOAL = 10;
 /** 그 달에 실적으로 표시한 지출의 개수. */
 export function perfCount(entries: readonly LedgerEntry[], ref: MonthRef): number {
   return entriesInMonth(entries, ref).filter((entry) => entry.perf).length;
+}
+
+/** 그 달에 올영 3000원·4000원을 각각 한 번이라도 표시했는지 센다. */
+export function oliveCount(entries: readonly LedgerEntry[], ref: MonthRef): number {
+  const current = entriesInMonth(entries, ref);
+  return Number(current.some((entry) => entry.olive_3000)) + Number(current.some((entry) => entry.olive_4000));
 }
 
 /** 문자함에 쌓아 두는 기간(일). 이보다 오래된 문자는 지운다. */

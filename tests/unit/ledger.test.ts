@@ -15,6 +15,7 @@ import {
   monthKeyLabel,
   monthStats,
   newSample,
+  oliveCount,
   parseAmount,
   plainBody,
   parseBudget,
@@ -42,6 +43,8 @@ function entry(id: string, spent_on: string, amount: number, extra: Partial<Ledg
     memo: "",
     sms_key: null,
     perf: false,
+    olive_3000: false,
+    olive_4000: false,
     created_at: "2026-11-01T00:00:00Z",
     ...extra,
   };
@@ -64,6 +67,20 @@ describe("perfCount", () => {
   it("표시한 지출이 없으면 0이다", () => {
     expect(perfCount([entry("a", "2026-11-02", 1000)], nov)).toBe(0);
     expect(perfCount([], nov)).toBe(0);
+  });
+});
+
+describe("oliveCount", () => {
+  const nov = { year: 2026, month: 11 };
+
+  it("같은 종류를 여러 번 표시해도 한 번만 세고 선택한 달만 센다", () => {
+    const entries = [
+      entry("a", "2026-11-02", 3000, { olive_3000: true }),
+      entry("b", "2026-11-03", 3000, { olive_3000: true }),
+      entry("c", "2026-10-03", 4000, { olive_4000: true }),
+    ];
+    expect(oliveCount(entries, nov)).toBe(1);
+    expect(oliveCount([...entries, entry("d", "2026-11-04", 4000, { olive_4000: true })], nov)).toBe(2);
   });
 });
 
@@ -373,7 +390,7 @@ describe("moveItem", () => {
 });
 
 describe("예금(합계 제외 분류)", () => {
-  const spend = { id: "s", spent_on: "2026-11-05", method: "신한", category: "식비", amount: 10_000, memo: "", sms_key: null, perf: false, created_at: "2026-11-05T00:00:00Z" };
+  const spend = { id: "s", spent_on: "2026-11-05", method: "신한", category: "식비", amount: 10_000, memo: "", sms_key: null, perf: false, olive_3000: false, olive_4000: false, created_at: "2026-11-05T00:00:00Z" };
   const save = { ...spend, id: "v", category: SAVINGS_CATEGORY, amount: 500_000 };
   const lastMonth = { ...spend, id: "p", spent_on: "2026-10-05", amount: 7_000 };
   const lastMonthSave = { ...save, id: "q", spent_on: "2026-10-06" };

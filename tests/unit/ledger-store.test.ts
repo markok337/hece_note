@@ -189,6 +189,17 @@ describe("항목", () => {
     expect(ledger.entriesIn(NOV).every((item) => item.perf)).toBe(true);
   });
 
+  it("올영 체크 두 개를 지출마다 따로 저장하고 수정한다", async () => {
+    await ledger.addEntry(FIELDS);
+    await ledger.addEntry({ ...FIELDS, olive_3000: true });
+    const plain = ledger.entriesIn(NOV).find((item) => !item.olive_3000)!;
+    const marked = ledger.entriesIn(NOV).find((item) => item.olive_3000)!;
+    expect(plain).toMatchObject({ olive_3000: false, olive_4000: false });
+    expect(marked).toMatchObject({ olive_3000: true, olive_4000: false });
+    await ledger.updateEntry(marked.id, { olive_3000: false, olive_4000: true });
+    expect(ledger.entriesIn(NOV).find((item) => item.id === marked.id)).toMatchObject({ olive_3000: false, olive_4000: true });
+  });
+
   it("없는 항목을 고치거나 지우면 false 다", async () => {
     expect(await ledger.updateEntry("none", { amount: 1 })).toBe(false);
     expect(await ledger.removeEntry("none")).toBe(false);

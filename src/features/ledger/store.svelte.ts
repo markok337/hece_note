@@ -51,7 +51,7 @@ interface Snapshot {
   sms: SmsRow[];
 }
 
-export type NewEntry = Omit<LedgerEntry, "id" | "created_at" | "sms_key" | "perf"> & { sms_key?: string | null; perf?: boolean };
+export type NewEntry = Omit<LedgerEntry, "id" | "created_at" | "sms_key" | "perf" | "olive_3000" | "olive_4000"> & { sms_key?: string | null; perf?: boolean; olive_3000?: boolean; olive_4000?: boolean };
 export type NewCard = Pick<Card, "name" | "sender" | "samples">;
 /** 폰에서 읽어 온 문자 한 통. 처리 상태는 문자함이 정한다. */
 export type NewSms = Omit<SmsRow, "id" | "status">;
@@ -188,7 +188,7 @@ class LedgerStore extends SyncedStore<Snapshot> {
   }
 
   #newEntry(input: NewEntry): LedgerEntry {
-    return { sms_key: null, perf: false, ...input, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    return { sms_key: null, perf: false, olive_3000: false, olive_4000: false, ...input, id: crypto.randomUUID(), created_at: new Date().toISOString() };
   }
 
   addEntry(input: NewEntry): Promise<boolean> {

@@ -12,7 +12,7 @@
   import SmsInbox from "./SmsInbox.svelte";
   import SettingsPanel from "./SettingsPanel.svelte";
   import SettlementPanel from "./SettlementPanel.svelte";
-  import { SAVINGS_CATEGORY, entriesBy, groupByDate, isCounted, monthStats, perfCount, type LedgerEntry, type SliceKind } from "./domain";
+  import { SAVINGS_CATEGORY, entriesBy, groupByDate, isCounted, monthStats, oliveCount, perfCount, type LedgerEntry, type SliceKind } from "./domain";
   import { canReadSms, inboxSummary, readSms } from "./sms-reader";
   import { ledger } from "./store.svelte";
 
@@ -45,6 +45,7 @@
   const stats = $derived(monthStats(allEntries, month));
   const budget = $derived(ledger.budgetFor(month));
   const perf = $derived(perfCount(allEntries, month));
+  const olive = $derived(oliveCount(allEntries, month));
   const drillEntries = $derived(drill ? entriesBy(drill.kind === "category" && drill.label === SAVINGS_CATEGORY ? entries : entries.filter(isCounted), drill.kind, drill.label) : []);
   // 설정에서 지운 분류라도 이력이 있으면 통계에서 고를 수 있다.
   const trendChoices = $derived(ledger.categoryChoices(...allEntries.map((entry) => entry.category)));
@@ -145,7 +146,7 @@ ${await inboxSummary(senders)}`;
   <!-- 넓은 화면에서도 내용이 한쪽으로 퍼지지 않게 폭을 제한하고 가운데에 둔다. -->
   <div class="content" id="ledger-panel" role="tabpanel" aria-labelledby="ledger-tab-{view}">
     {#if view === "list"}
-      <BudgetStrip spent={stats.total} {budget} perf={perf} />
+      <BudgetStrip spent={stats.total} {budget} perf={perf} {olive} />
       <EntryList {groups} onedit={(entry) => (editing = entry)} />
     {:else if view === "settlement"}
       <SettlementPanel {stats} {budget} {perf} onpick={(kind, label) => (drill = { kind, label })} />

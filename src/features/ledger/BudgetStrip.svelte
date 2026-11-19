@@ -9,9 +9,11 @@
     budget: number | null;
     /** 이 달에 실적으로 표시한 지출 개수. */
     perf: number;
+    /** 이 달에 표시한 올영 혜택 종류 수. */
+    olive: number;
   }
 
-  const { spent, budget, perf }: Props = $props();
+  const { spent, budget, perf, olive }: Props = $props();
 
   const status = $derived(budget === null ? null : budgetStatus(spent, budget));
   const meterLabel = $derived(status ? `예산의 ${Math.round((Math.max(spent, 0) / status.budget) * 100)}% 사용` : "예산 없음");
@@ -28,7 +30,8 @@
     <div class="track" role="img" aria-label={meterLabel}>
       <span class="fill" class:over={status?.over} style:width="{(status?.ratio ?? 0) * 100}%"></span>
     </div>
-    <span class="perf" class:done={perf >= PERF_GOAL}>실적 {perf}/{PERF_GOAL}</span>
+    <span class="perf" class:done={perf >= PERF_GOAL}>신한 {perf}/{PERF_GOAL}</span>
+    <span class="perf olive" class:done={olive >= 2}>올영 {olive}/2</span>
   </div>
 </div>
 
@@ -52,6 +55,7 @@
   .meter { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
   .perf { flex-shrink: 0; font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .perf.done { color: var(--accent-strong); font-weight: 700; }
+  .perf.olive.done { color: #16803c; }
   .track { flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
   .fill { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
   .fill.over { background: var(--danger); }
