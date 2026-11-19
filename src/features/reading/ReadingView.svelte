@@ -3,19 +3,19 @@
   import { clock } from "../../core/clock.svelte";
   import { monthGrid, parseYmd, shiftMonth, type MonthRef } from "../../core/dates";
   import { session } from "../../core/session.svelte";
-  import { viewport } from "../../core/viewport.svelte";
   import Modal from "../../ui/Modal.svelte";
   import { reading } from "./store.svelte";
   import { weekBookSegments, type ReadingBook, type ReadingNote } from "./domain";
 
   let month = $state<MonthRef>({ year: parseYmd(clock.today).year, month: parseYmd(clock.today).month });
   let selected = $state<string | null>(null);
+  let showBookList = $state(false);
   let editingBook = $state<ReadingBook | null>(null);
   let bookDraft = $state<ReadingBook | null>(null);
   let noteDraft = $state<ReadingNote | null>(null);
   let noteBookId = $state<string | null>(null);
   const weeks = $derived(monthGrid(month));
-  const panelDay = $derived(viewport.isWide ? (selected ?? clock.today) : selected);
+  const sortedBooks = $derived([...reading.books].sort((a, b) => b.start_day.localeCompare(a.start_day)));
 
   function chooseDay(day: string): void {
     selected = day;
@@ -61,14 +61,15 @@
   }
 </script>
 
-<div class="reading" class:wide={viewport.isWide}>
+<div class="reading">
   <header class="toolbar">
     <h1>{month.year}년 {month.month}월</h1>
     <div class="toolbar-actions">
       <button type="button" class="sub icon" aria-label="이전 달" onclick={() => { month = shiftMonth(month, -1); selected = null; }}>‹</button>
       <button type="button" class="sub icon" aria-label="다음 달" onclick={() => { month = shiftMonth(month, 1); selected = null; }}>›</button>
       <button type="button" class="sub compact" onclick={() => { month = { year: parseYmd(clock.today).year, month: parseYmd(clock.today).month }; selected = clock.today; }}>오늘</button>
-      <button type="button" class="primary compact" onclick={newBook}>+ 책 추가</button>
+      <button type="button" class="sub compact" onclick={() => { selected = null; showBookList = true; }}>책 목록</button>
+      <button type="button" class="primary compact" onclick={newBook}>+ 책</button>
       <button type="button" class="sub icon utility" aria-label="새로고침" onclick={() => void reading.load()}>↻</button>
       <button type="button" class="sub icon utility" aria-label="로그아웃" onclick={() => session.logout()}>⇥</button>
     </div>
@@ -88,7 +89,7 @@
                 type="button"
                 class="day"
                 class:outside={parseYmd(day).month !== month.month}
-                class:chosen={panelDay === day}
+                class:chosen={selected === day}
                 class:today={day === clock.today}
                 style:grid-column={index + 1}
                 aria-label="{day} 독서 기록 보기. 행이 {reading.day(day).haeng ? '읽음' : '미체크'}, 챙이 {reading.day(day).chaeng ? '읽음' : '미체크'}"
@@ -114,13 +115,10 @@
         {/each}
       </div>
     </div>
-    {#if viewport.isWide && panelDay}
-      <aside class="side">{@render dayPanel(panelDay)}</aside>
-    {/if}
   </div>
-  {#if !viewport.isWide && panelDay}
-    <Modal label="{panelDay} 독서" wide onclose={() => selected = null}>
-      {@render dayPanel(panelDay)}
+  {#if selected}
+    <Modal label="{selected} 독서" onclose={() => selected = null}>
+      {@render dayPanel(selected)}
     </Modal>
   {/if}
 </div>
@@ -133,16 +131,19 @@
       <label class:checked={reading.day(day).chaeng}><input type="checkbox" checked={reading.day(day).chaeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "챙이", event.currentTarget.checked)} /> <span>챙이</span></label>
     </div>
   </div>
-    <section class="panel-section">
-      <div class="section-title"><h3>책 <span class="count">{reading.booksOn(day).length}</span></h3></div>
-      {#each reading.booksOn(day) as book (book.id)}
-        <div class="book-card">
-          <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author}</small></button>
-          <button type="button" class="sub small" aria-label="{book.title} 수정" onclick={() => editBook(book)}>수정</button>
-        </div>
-      {/each}
-    </section>
 {/snippet}
+
+{#if showBookList}
+  <Modal label="책 목록" extraWide layer={55} onclose={() => showBookList = false}>
+    <div class="list-heading"><h2>책 목록</h2><button type="button" class="sub small" onclick={newBook}>+ 책</button></div>
+    {#each sortedBooks as book (book.id)}
+      <div class="book-card">
+        <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author} · {book.start_day} ~ {book.end_day ?? "읽는 중"}</small></button>
+        <button type="button" class="sub small" aria-label="{book.title} 수정" onclick={() => editBook(book)}>수정</button>
+      </div>
+    {/each}
+  </Modal>
+{/if}
 
 {#if bookDraft}
   <Modal label="책 입력" wide layer={70} onclose={() => bookDraft = null}>
@@ -214,8 +215,8 @@
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; border-radius: 50%; }
-  .day-number { display: inline-grid; place-items: center; width: 22px; height: 22px; font-size: .8rem; line-height: 1; }
-  .day-marks { display: flex; flex-direction: column; gap: 1px; font-size: .58rem; line-height: 1; }
+  .day-number { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; font-size: .8rem; line-height: 1; }
+  .day-marks { flex: none; display: flex; flex-direction: row; align-items: center; gap: 1px; font-size: .58rem; line-height: 1; }
   .day-marks span { display: grid; place-items: center; width: 17px; height: 14px; border-radius: 3px; color: #64748b; background: #e2e8f0; font-weight: 700; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
   .day-marks .chaeng-mark.read { color: white; background: #be185d; }
@@ -225,12 +226,11 @@
   .period.chaeng { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
   .period.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
   .period.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
-  .side { width: clamp(320px, 36vw, 540px); flex: none; padding: 14px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
   .day-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-right: 42px; }
   .day-top h2 { flex: none; margin: 0; }
-  .panel-section { min-width: 0; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 42px; margin-bottom: 10px; }
+  .list-heading h2 { margin: 0; }
   .section-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 10px; }
-  .count { color: var(--muted); font-size: .8rem; font-weight: 400; }
   .day-checks, .actions { display: flex; gap: 5px; flex-wrap: wrap; }
   .day-checks label { display: flex; align-items: center; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: .82rem; font-weight: 700; }
   .day-checks label.checked { background: #eff6ff; border-color: var(--accent); }
@@ -261,6 +261,12 @@
     .editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .editor-fields .full { grid-column: 1 / -1; }
   }
+  @media (max-width: 1100px) {
+    .day { gap: 1px; padding: 2px 1px; }
+    .day-number { width: 16px; height: 18px; font-size: .72rem; }
+    .day-marks { font-size: .5rem; }
+    .day-marks span { width: 10px; height: 14px; }
+  }
   @media (max-width: 719px) {
     .toolbar { align-items: center; }
     h1 { font-size: 1rem; }
@@ -268,9 +274,6 @@
     .toolbar .icon { width: 30px; height: 32px; }
     .toolbar .compact { height: 32px; padding: 0 6px; font-size: .74rem; }
     .toolbar .utility { display: none; }
-    .day { padding: 2px; }
-    .day-marks { font-size: .54rem; }
-    .day-marks span { width: 14px; height: 13px; }
     .period { padding: 1px 3px; font-size: .62rem; }
   }
 </style>
