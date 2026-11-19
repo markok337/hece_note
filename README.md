@@ -1,6 +1,6 @@
 # hece_note
 
-내 기기 5대에서만 쓰는 개인 앱(PWA). 블로그용 스케줄표 · 가계부 · 냉장고 물품메모.
+내 기기 5대에서만 쓰는 개인 앱(PWA). 블로그용 스케줄표 · 가계부 · 냉장고 물품메모 · 독서 달력.
 
 - 결정 사항과 남은 논의: [docs/decisions.md](docs/decisions.md)
 - 키 발급과 초기 세팅: [docs/setup.md](docs/setup.md)

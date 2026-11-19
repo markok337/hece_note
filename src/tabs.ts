@@ -8,6 +8,8 @@ import FridgeView from "./features/fridge/FridgeView.svelte";
 import { fridge } from "./features/fridge/store.svelte";
 import LedgerView from "./features/ledger/LedgerView.svelte";
 import { ledger } from "./features/ledger/store.svelte";
+import ReadingView from "./features/reading/ReadingView.svelte";
+import { reading } from "./features/reading/store.svelte";
 
 export interface Feature {
   id: string;
@@ -46,6 +48,14 @@ export const FEATURES = [
     start: () => ledger.start(),
     stop: () => ledger.stop(),
     isLive: () => ledger.live,
+  },
+  {
+    id: "reading",
+    label: "독서",
+    view: ReadingView,
+    start: () => reading.start(),
+    stop: () => reading.stop(),
+    isLive: () => reading.live,
   },
 ] as const satisfies readonly Feature[];
 
