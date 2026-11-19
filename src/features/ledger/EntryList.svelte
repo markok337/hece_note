@@ -44,9 +44,9 @@
               <td class="category">{entry.category}</td>
               <td class="memo" title={entry.memo}>
                 {#if onedit}
-                  <button type="button">{#if entry.perf}<b class="perf" title="실적">✓</b>{/if}{entry.memo || "-"}</button>
+                  <button type="button">{#if entry.perf}<b class="perf" title="신한 실적">✓</b>{/if}{#if entry.olive_3000}<b class="olive" title="올영 3000원">✓</b>{/if}{#if entry.olive_4000}<b class="olive" title="올영 4000원">✓</b>{/if}{entry.memo || "-"}</button>
                 {:else}
-                  {#if entry.perf}<b class="perf" title="실적">✓</b>{/if}{entry.memo || "-"}
+                  {#if entry.perf}<b class="perf" title="신한 실적">✓</b>{/if}{#if entry.olive_3000}<b class="olive" title="올영 3000원">✓</b>{/if}{#if entry.olive_4000}<b class="olive" title="올영 4000원">✓</b>{/if}{entry.memo || "-"}
                 {/if}
               </td>
               <td class="method" title={entry.method}>{entry.method}</td>
@@ -115,8 +115,10 @@
   .category { font-size: 0.75rem; font-weight: 700; color: var(--accent-strong); }
   .method { font-size: 0.75rem; color: var(--muted); }
   .amount { font-weight: 700; }
-  /* 실적으로 센 지출은 메모 앞에 체크 표시가 붙는다. */
-  .perf { margin-right: 3px; color: var(--accent-strong); }
+  /* 선택한 실적은 메모 앞에 색을 구분해 표시한다. */
+  .perf, .olive { margin-right: 3px; }
+  .perf { color: var(--accent-strong); }
+  .olive { color: #16803c; }
   .amount.refund { color: var(--ok); }
 
   .clickable { cursor: pointer; }
