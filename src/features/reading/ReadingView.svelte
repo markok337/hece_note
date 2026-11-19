@@ -33,6 +33,11 @@
 
   function editBook(book: ReadingBook): void { bookDraft = { ...book }; }
 
+  async function completeBook(book: ReadingBook): Promise<void> {
+    if (book.end_day || book.start_day > clock.today) return;
+    await reading.putBook({ ...book, end_day: clock.today });
+  }
+
   async function submitBook(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (bookDraft && await reading.putBook({ ...bookDraft, title: bookDraft.title.trim(), author: bookDraft.author.trim(), end_day: bookDraft.end_day || null })) bookDraft = null;
@@ -133,6 +138,7 @@
       {#each reading.booksOn(day) as book (book.id)}
         <div class="book-card">
           <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author}</small></button>
+          {#if !book.end_day && book.start_day <= clock.today}<button type="button" class="sub small" aria-label="{book.title} 완독" disabled={!reading.loaded} onclick={() => void completeBook(book)}>완독</button>{/if}
           <button type="button" class="sub small" aria-label="{book.title} 수정" onclick={() => editBook(book)}>수정</button>
         </div>
       {/each}
@@ -165,7 +171,7 @@
         <span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span>
         <span class="book-meta">{book.author}</span>
         <span class="book-dates">{book.start_day} ~ {book.end_day ?? "읽는 중"}</span>
-        <div class="actions"><button type="button" class="sub" onclick={() => editBook(book)}>책 수정</button><button type="button" class="sub danger" onclick={() => void removeBook(book)}>책 삭제</button></div>
+        <div class="actions">{#if !book.end_day && book.start_day <= clock.today}<button type="button" class="sub" disabled={!reading.loaded} onclick={() => void completeBook(book)}>완독</button>{/if}<button type="button" class="sub" onclick={() => editBook(book)}>책 수정</button><button type="button" class="sub danger" onclick={() => void removeBook(book)}>책 삭제</button></div>
       </div>
       <div class="section-title"><h3>메모</h3><button type="button" class="sub small" onclick={() => newNote(book)}>+ 메모</button></div>
       {#each reading.notesFor(book.id) as note (note.id)}
@@ -205,13 +211,13 @@
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
-  .day { grid-row: 1 / -1; display: grid; grid-template-columns: 22px 17px 17px; align-content: start; justify-content: start; gap: 3px; min-width: 0; overflow: hidden; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
+  .day { grid-row: 1 / -1; display: flex; align-items: flex-start; justify-content: space-between; gap: 3px; min-width: 0; overflow: hidden; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day:hover { background: #eff6ff; }
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; border-radius: 50%; }
   .day-number { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; font-size: .8rem; line-height: 1; }
-  .day-marks { display: contents; font-size: .58rem; line-height: 1; }
+  .day-marks { flex: none; display: flex; gap: 3px; font-size: .58rem; line-height: 1; }
   .day-marks span { display: grid; place-items: center; width: 17px; height: 14px; border-radius: 3px; color: #334155; background: #dbe2eb; font-weight: 800; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
   .day-marks .chaeng-mark.read { color: white; background: #be185d; }
@@ -231,6 +237,7 @@
   .day-checks input { flex: none; width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); }
   .small, .actions button { padding: 5px 9px; font-size: .8rem; }
   .book-card { display: flex; align-items: center; gap: 6px; width: 100%; margin: 6px 0; padding: 5px; color: var(--text); background: #f8fafc; border: 1px solid var(--line); border-radius: 9px; }
+  .book-card > .small { flex: none; white-space: nowrap; }
   .book-info { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; min-width: 0; padding: 4px; text-align: left; color: var(--text); background: transparent; }
   .book-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .book-info small { flex-basis: 100%; color: var(--muted); }
@@ -256,16 +263,16 @@
     .editor-fields .full { grid-column: 1 / -1; }
   }
   @media (max-width: 1100px) {
-    .day { grid-template-columns: 14px 11px 11px; gap: 1px; padding: 2px 1px; }
+    .day { gap: 2px; padding: 2px 1px; }
     .day-number { width: 14px; height: 18px; font-size: .68rem; }
-    .day-marks { font-size: .5rem; }
-    .day-marks span { width: 11px; height: 14px; }
+    .day-marks { gap: 2px; font-size: .5rem; }
+    .day-marks span { width: 10px; height: 14px; }
   }
   @media (min-width: 360px) and (max-width: 1100px) {
-    .day { grid-template-columns: 16px 12px 12px; gap: 1px; padding: 2px; }
-    .day-number { width: 16px; font-size: .74rem; }
+    .day { gap: 2px; padding: 2px; }
+    .day-number { width: 14px; font-size: .74rem; }
     .day-marks { font-size: .6rem; }
-    .day-marks span { width: 12px; height: 16px; }
+    .day-marks span { width: 10px; height: 16px; }
   }
   @media (max-width: 719px) {
     .toolbar { align-items: center; }
