@@ -9,13 +9,11 @@
 
   let month = $state<MonthRef>({ year: parseYmd(clock.today).year, month: parseYmd(clock.today).month });
   let selected = $state<string | null>(null);
-  let showBookList = $state(false);
   let editingBook = $state<ReadingBook | null>(null);
   let bookDraft = $state<ReadingBook | null>(null);
   let noteDraft = $state<ReadingNote | null>(null);
   let noteBookId = $state<string | null>(null);
   const weeks = $derived(monthGrid(month));
-  const sortedBooks = $derived([...reading.books].sort((a, b) => b.start_day.localeCompare(a.start_day)));
 
   function chooseDay(day: string): void {
     selected = day;
@@ -68,7 +66,6 @@
       <button type="button" class="sub icon" aria-label="이전 달" onclick={() => { month = shiftMonth(month, -1); selected = null; }}>‹</button>
       <button type="button" class="sub icon" aria-label="다음 달" onclick={() => { month = shiftMonth(month, 1); selected = null; }}>›</button>
       <button type="button" class="sub compact" onclick={() => { month = { year: parseYmd(clock.today).year, month: parseYmd(clock.today).month }; selected = clock.today; }}>오늘</button>
-      <button type="button" class="sub compact" onclick={() => { selected = null; showBookList = true; }}>책 목록</button>
       <button type="button" class="primary compact" onclick={newBook}>+ 책</button>
       <button type="button" class="sub icon utility" aria-label="새로고침" onclick={() => void reading.load()}>↻</button>
       <button type="button" class="sub icon utility" aria-label="로그아웃" onclick={() => session.logout()}>⇥</button>
@@ -131,19 +128,17 @@
       <label class:checked={reading.day(day).chaeng}><input type="checkbox" checked={reading.day(day).chaeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "챙이", event.currentTarget.checked)} /> <span>챙이</span></label>
     </div>
   </div>
+  {#if reading.booksOn(day).length > 0}
+    <section class="day-books">
+      {#each reading.booksOn(day) as book (book.id)}
+        <div class="book-card">
+          <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author}</small></button>
+          <button type="button" class="sub small" aria-label="{book.title} 수정" onclick={() => editBook(book)}>수정</button>
+        </div>
+      {/each}
+    </section>
+  {/if}
 {/snippet}
-
-{#if showBookList}
-  <Modal label="책 목록" extraWide layer={55} onclose={() => showBookList = false}>
-    <div class="list-heading"><h2>책 목록</h2><button type="button" class="sub small" onclick={newBook}>+ 책</button></div>
-    {#each sortedBooks as book (book.id)}
-      <div class="book-card">
-        <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author} · {book.start_day} ~ {book.end_day ?? "읽는 중"}</small></button>
-        <button type="button" class="sub small" aria-label="{book.title} 수정" onclick={() => editBook(book)}>수정</button>
-      </div>
-    {/each}
-  </Modal>
-{/if}
 
 {#if bookDraft}
   <Modal label="책 입력" wide layer={70} onclose={() => bookDraft = null}>
@@ -192,7 +187,7 @@
 {/if}
 
 <style>
-  .reading { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .reading { flex: 1; width: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 2px 2px 8px; }
   h1 { font-size: 1.2rem; line-height: 1.2; white-space: nowrap; margin: 0; }
   h2 { font-size: 1.2rem; line-height: 1.25; margin: 3px 44px 8px 0; }
@@ -210,14 +205,14 @@
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
-  .day { grid-row: 1 / -1; display: flex; align-items: flex-start; justify-content: flex-start; gap: 3px; min-width: 0; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
+  .day { grid-row: 1 / -1; display: grid; grid-template-columns: 22px 17px 17px; align-content: start; justify-content: start; gap: 3px; min-width: 0; overflow: hidden; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day:hover { background: #eff6ff; }
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; border-radius: 50%; }
   .day-number { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; font-size: .8rem; line-height: 1; }
-  .day-marks { flex: none; display: flex; flex-direction: row; align-items: center; gap: 1px; font-size: .58rem; line-height: 1; }
-  .day-marks span { display: grid; place-items: center; width: 17px; height: 14px; border-radius: 3px; color: #64748b; background: #e2e8f0; font-weight: 700; }
+  .day-marks { display: contents; font-size: .58rem; line-height: 1; }
+  .day-marks span { display: grid; place-items: center; width: 17px; height: 14px; border-radius: 3px; color: #334155; background: #dbe2eb; font-weight: 800; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
   .day-marks .chaeng-mark.read { color: white; background: #be185d; }
   .period { z-index: 1; pointer-events: none; align-self: start; display: block; min-width: 0; height: 21px; margin: 1px 2px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 6px; font-size: .7rem; line-height: 17px; font-weight: 700; }
@@ -228,8 +223,7 @@
   .period.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
   .day-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-right: 42px; }
   .day-top h2 { flex: none; margin: 0; }
-  .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 42px; margin-bottom: 10px; }
-  .list-heading h2 { margin: 0; }
+  .day-books { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
   .section-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 10px; }
   .day-checks, .actions { display: flex; gap: 5px; flex-wrap: wrap; }
   .day-checks label { display: flex; align-items: center; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: .82rem; font-weight: 700; }
@@ -262,10 +256,16 @@
     .editor-fields .full { grid-column: 1 / -1; }
   }
   @media (max-width: 1100px) {
-    .day { gap: 1px; padding: 2px 1px; }
-    .day-number { width: 16px; height: 18px; font-size: .72rem; }
+    .day { grid-template-columns: 14px 11px 11px; gap: 1px; padding: 2px 1px; }
+    .day-number { width: 14px; height: 18px; font-size: .68rem; }
     .day-marks { font-size: .5rem; }
-    .day-marks span { width: 10px; height: 14px; }
+    .day-marks span { width: 11px; height: 14px; }
+  }
+  @media (min-width: 360px) and (max-width: 1100px) {
+    .day { grid-template-columns: 16px 12px 12px; gap: 1px; padding: 2px; }
+    .day-number { width: 16px; font-size: .74rem; }
+    .day-marks { font-size: .6rem; }
+    .day-marks span { width: 12px; height: 16px; }
   }
   @media (max-width: 719px) {
     .toolbar { align-items: center; }
