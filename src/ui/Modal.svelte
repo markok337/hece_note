@@ -8,11 +8,13 @@
     fixed?: boolean;
     /** true 면 달력처럼 가로로 넓은 내용을 위해 창을 더 넓게 쓴다. */
     wide?: boolean;
+    /** 겹쳐 열리는 창의 표시 순서. */
+    layer?: number;
     onclose: () => void;
     children: Snippet;
   }
 
-  const { label, fixed = false, wide = false, onclose, children }: Props = $props();
+  const { label, fixed = false, wide = false, layer = 50, onclose, children }: Props = $props();
 
   let modalEl = $state<HTMLDivElement>();
   // 창 안의 글자를 끌어 고르다가 밖에서 손을 떼면 브라우저가 배경에 click 을 보낸다. 배경에서 누르기 시작한 경우만 닫는다.
@@ -51,6 +53,7 @@
 
 <div
   class="backdrop"
+  style:z-index={layer}
   role="presentation"
   onpointerdown={(e) => (pressedBackdrop = e.target === e.currentTarget)}
   onclick={(e) => e.target === e.currentTarget && pressedBackdrop && onclose()}
