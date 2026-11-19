@@ -82,7 +82,7 @@
         {#each weeks as week (week[0])}
           {@const segments = weekBookSegments(week, reading.books, clock.today)}
           {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 1}
-          <div class="week" style:grid-template-rows="38px repeat({laneCount}, 24px)" style:min-height="{Math.max(82, 42 + laneCount * 24)}px" style:flex-grow={1}>
+          <div class="week" style:grid-template-rows="38px repeat({laneCount}, minmax(24px, 1fr))" style:min-height="{Math.max(82, 42 + laneCount * 24)}px" style:flex-grow={1}>
             {#each week as day, index (day)}
               <button
                 type="button"
@@ -91,11 +91,11 @@
                 class:chosen={panelDay === day}
                 class:today={day === clock.today}
                 style:grid-column={index + 1}
-                aria-label="{day} 독서 기록 보기"
+                aria-label="{day} 독서 기록 보기. 행이 {reading.day(day).haeng ? '읽음' : '미체크'}, 챙이 {reading.day(day).chaeng ? '읽음' : '미체크'}"
                 onclick={() => chooseDay(day)}
               >
                 <span class="day-number">{parseYmd(day).day}</span>
-                <span class="day-marks"><span class:read={reading.day(day).haeng}>행</span><span class:read={reading.day(day).chaeng}>챙</span></span>
+                <span class="day-marks"><span class="haeng-mark" class:read={reading.day(day).haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).chaeng}>챙</span></span>
               </button>
             {/each}
             {#each segments as segment (segment.book.id)}
@@ -129,15 +129,13 @@
 </div>
 
 {#snippet dayPanel(day: string)}
-  <div class="panel-heading"><h2>{parseYmd(day).month}월 {parseYmd(day).day}일</h2></div>
-  <div class="panel-shell"><div class="panel-content">
-    <section class="panel-section">
-      <div class="section-title"><h3>독서 체크</h3></div>
-      <div class="day-checks">
-        <label class:checked={reading.day(day).haeng}><input type="checkbox" checked={reading.day(day).haeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "행이", event.currentTarget.checked)} /> <span>행이</span></label>
-        <label class:checked={reading.day(day).chaeng}><input type="checkbox" checked={reading.day(day).chaeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "챙이", event.currentTarget.checked)} /> <span>챙이</span></label>
-      </div>
-    </section>
+  <div class="day-top">
+    <h2>{parseYmd(day).month}월 {parseYmd(day).day}일</h2>
+    <div class="day-checks" role="group" aria-label="독서 체크">
+      <label class:checked={reading.day(day).haeng}><input type="checkbox" checked={reading.day(day).haeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "행이", event.currentTarget.checked)} /> <span>행이</span></label>
+      <label class:checked={reading.day(day).chaeng}><input type="checkbox" checked={reading.day(day).chaeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "챙이", event.currentTarget.checked)} /> <span>챙이</span></label>
+    </div>
+  </div>
     <section class="panel-section">
       <div class="section-title"><h3>책 <span class="count">{reading.booksOn(day).length}</span></h3><button type="button" class="sub small" onclick={newBook}>+ 추가</button></div>
       {#each reading.booksOn(day) as book (book.id)}
@@ -147,7 +145,6 @@
         </div>
       {/each}
     </section>
-  </div></div>
 {/snippet}
 
 {#if bookDraft}
@@ -176,7 +173,7 @@
       <div class="actions"><button type="button" class="sub" onclick={() => editBook(book)}>책 수정</button><button type="button" class="sub danger" onclick={() => void removeBook(book)}>책 삭제</button></div>
       <div class="section-title"><h3>메모</h3><button type="button" onclick={() => newNote(book)}>메모 추가</button></div>
       {#each reading.notesFor(book.id) as note (note.id)}
-        <div class="note"><strong>{note.page}쪽</strong><p>{note.content}</p><div class="actions"><button type="button" class="sub" onclick={() => editNote(note)}>수정</button><button type="button" class="sub danger" onclick={() => void removeNote(note)}>삭제</button></div></div>
+        <div class="note"><div class="note-head"><strong>{note.page}쪽</strong><div class="actions"><button type="button" class="sub" onclick={() => editNote(note)}>수정</button><button type="button" class="sub danger" onclick={() => void removeNote(note)}>삭제</button></div></div><p>{note.content}</p></div>
       {/each}
     {/if}
   </Modal>
@@ -210,33 +207,34 @@
   .weekdays div { padding: 5px; text-align: center; font-size: .78rem; font-weight: 700; }
   .weekdays div:first-child { color: #b91c1c; }
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
-  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 82px; align-content: start; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
+  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
-  .day { grid-row: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; min-width: 0; padding: 3px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
-  .day:hover, .day.chosen { background: #dbeafe; }
+  .day { grid-row: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; min-width: 0; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
+  .day:hover { background: #eff6ff; }
+  .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; border-radius: 50%; }
   .day-number { display: inline-grid; place-items: center; width: 22px; height: 22px; font-size: .8rem; line-height: 1; }
-  .day-marks { display: flex; gap: 2px; font-size: .6rem; line-height: 1; }
-  .day-marks span { color: #94a3b8; }
-  .day-marks .read { color: var(--accent-strong); font-weight: 800; }
-  .period { z-index: 1; display: block; min-width: 0; height: 21px; margin: 1px 2px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 6px; font-size: .7rem; line-height: 17px; font-weight: 700; }
+  .day-marks { display: flex; gap: 2px; margin-top: 2px; font-size: .65rem; line-height: 1; }
+  .day-marks span { display: grid; place-items: center; width: 20px; height: 17px; border-radius: 4px; color: #64748b; background: #e2e8f0; font-weight: 700; }
+  .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
+  .day-marks .chaeng-mark.read { color: white; background: #be185d; }
+  .period { z-index: 1; align-self: start; display: block; min-width: 0; height: 21px; margin: 1px 2px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 6px; font-size: .7rem; line-height: 17px; font-weight: 700; }
   .period span { overflow: hidden; text-overflow: ellipsis; }
   .period.haeng { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
   .period.chaeng { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
   .period.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
   .period.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
   .side { width: clamp(320px, 36vw, 540px); flex: none; padding: 14px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
-  .panel-heading { margin-bottom: 10px; }
-  .panel-shell { container-type: inline-size; }
-  .panel-content { display: grid; gap: 14px; }
-  .panel-section { min-width: 0; padding-top: 10px; border-top: 1px solid var(--line); }
+  .day-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-right: 22px; }
+  .day-top h2 { flex: none; margin: 0; }
+  .panel-section { min-width: 0; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
   .section-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 10px; }
   .count { color: var(--muted); font-size: .8rem; font-weight: 400; }
-  .day-checks, .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .day-checks label { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 110px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; font-weight: 700; }
+  .day-checks, .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+  .day-checks label { display: flex; align-items: center; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: .82rem; font-weight: 700; }
   .day-checks label.checked { background: #eff6ff; border-color: var(--accent); }
-  .day-checks input { flex: none; width: 18px; height: 18px; margin: 0; padding: 0; accent-color: var(--accent); }
+  .day-checks input { flex: none; width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); }
   .small, .actions button { padding: 5px 9px; font-size: .8rem; }
   .book-card { display: flex; align-items: center; gap: 6px; width: 100%; margin: 6px 0; padding: 5px; color: var(--text); background: #f8fafc; border: 1px solid var(--line); border-radius: 9px; }
   .book-info { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; min-width: 0; padding: 4px; text-align: left; color: var(--text); background: transparent; }
@@ -255,11 +253,9 @@
   .book-dates { display: inline-block; margin: 5px 0 14px; padding: 5px 9px; border-radius: 6px; background: var(--bg); font-size: .82rem; }
   .danger { color: var(--danger); }
   .note { padding: 10px 0; border-top: 1px solid var(--line); }
+  .note-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .note p { white-space: pre-wrap; margin: 4px 0 8px; }
-  @container (min-width: 450px) {
-    .panel-content { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: start; }
-  }
-  @media (min-width: 480px) {
+  @media (min-width: 360px) {
     .editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .editor-fields .full { grid-column: 1 / -1; }
   }
@@ -271,7 +267,8 @@
     .toolbar .compact { height: 32px; padding: 0 6px; font-size: .74rem; }
     .toolbar .utility { display: none; }
     .day { padding: 2px; }
-    .day-marks { font-size: .56rem; }
+    .day-marks { gap: 1px; font-size: .6rem; }
+    .day-marks span { width: 18px; height: 16px; }
     .period { padding: 1px 3px; font-size: .62rem; }
   }
 </style>
