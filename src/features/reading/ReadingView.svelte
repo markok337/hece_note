@@ -211,14 +211,14 @@
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
-  .day { grid-row: 1 / -1; display: flex; align-items: flex-start; justify-content: space-between; gap: 3px; min-width: 0; overflow: hidden; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
+  .day { grid-row: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; column-gap: 2px; min-width: 0; overflow: hidden; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day:hover { background: #eff6ff; }
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; border-radius: 50%; }
-  .day-number { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; font-size: .8rem; line-height: 1; }
-  .day-marks { flex: none; display: flex; gap: 3px; font-size: .58rem; line-height: 1; }
-  .day-marks span { display: grid; place-items: center; width: 17px; height: 14px; border-radius: 3px; color: #334155; background: #dbe2eb; font-weight: 800; }
+  .day-number { justify-self: center; display: inline-grid; place-items: center; width: 22px; height: 22px; font-size: .8rem; line-height: 1; }
+  .day-marks { display: contents; font-size: .58rem; line-height: 1; }
+  .day-marks span { justify-self: center; display: grid; place-items: center; width: 17px; height: 14px; border-radius: 3px; color: #334155; background: #dbe2eb; font-weight: 800; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
   .day-marks .chaeng-mark.read { color: white; background: #be185d; }
   .period { z-index: 1; pointer-events: none; align-self: start; display: block; min-width: 0; height: 21px; margin: 1px 2px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 6px; font-size: .7rem; line-height: 17px; font-weight: 700; }
@@ -263,13 +263,13 @@
     .editor-fields .full { grid-column: 1 / -1; }
   }
   @media (max-width: 1100px) {
-    .day { gap: 2px; padding: 2px 1px; }
+    .day { column-gap: 2px; padding: 2px 1px; }
     .day-number { width: 14px; height: 18px; font-size: .68rem; }
-    .day-marks { gap: 2px; font-size: .5rem; }
+    .day-marks { font-size: .5rem; }
     .day-marks span { width: 10px; height: 14px; }
   }
   @media (min-width: 360px) and (max-width: 1100px) {
-    .day { gap: 2px; padding: 2px; }
+    .day { padding: 2px; }
     .day-number { width: 14px; font-size: .74rem; }
     .day-marks { font-size: .6rem; }
     .day-marks span { width: 10px; height: 16px; }
