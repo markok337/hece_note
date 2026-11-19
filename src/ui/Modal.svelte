@@ -8,13 +8,15 @@
     fixed?: boolean;
     /** true 면 달력처럼 가로로 넓은 내용을 위해 창을 더 넓게 쓴다. */
     wide?: boolean;
+    /** 책 상세처럼 가로로 놓는 내용에 쓴다. */
+    extraWide?: boolean;
     /** 겹쳐 열리는 창의 표시 순서. */
     layer?: number;
     onclose: () => void;
     children: Snippet;
   }
 
-  const { label, fixed = false, wide = false, layer = 50, onclose, children }: Props = $props();
+  const { label, fixed = false, wide = false, extraWide = false, layer = 50, onclose, children }: Props = $props();
 
   let modalEl = $state<HTMLDivElement>();
   // 창 안의 글자를 끌어 고르다가 밖에서 손을 떼면 브라우저가 배경에 click 을 보낸다. 배경에서 누르기 시작한 경우만 닫는다.
@@ -62,6 +64,7 @@
     class="modal"
     class:fixed
     class:wide
+    class:extra-wide={extraWide}
     role="dialog"
     aria-modal="true"
     aria-label={label}
@@ -101,6 +104,7 @@
   /* 높이를 고정하고 안쪽 내용이 남는 자리를 채운다. 내용이 많으면 목록만 스크롤한다. */
   .modal.fixed { height: min(560px, 100%); display: flex; flex-direction: column; overflow: hidden; }
   .modal.wide { max-width: 520px; }
+  .modal.extra-wide { max-width: 720px; }
   .close { position: absolute; top: 8px; right: 8px; padding: 6px 10px; }
 
   @media (max-height: 520px) {

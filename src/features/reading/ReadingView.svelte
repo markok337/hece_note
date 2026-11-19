@@ -99,8 +99,7 @@
               </button>
             {/each}
             {#each segments as segment (segment.book.id)}
-              <button
-                type="button"
+              <div
                 class="period"
                 class:haeng={segment.book.reader === "행이"}
                 class:chaeng={segment.book.reader === "챙이"}
@@ -109,9 +108,7 @@
                 style:grid-column="{segment.start + 1} / {segment.end + 2}"
                 style:grid-row={segment.lane + 2}
                 title="{segment.book.reader} · {segment.book.title}"
-                aria-label="{segment.book.reader}의 {segment.book.title}, {week[segment.start]}부터 {week[segment.end]}까지"
-                onclick={() => editingBook = segment.book}
-              ><span>{segment.book.reader === "행이" ? "행" : "챙"} · {segment.book.title}</span></button>
+              ><span>{segment.book.reader === "행이" ? "행" : "챙"} · {segment.book.title}</span></div>
             {/each}
           </div>
         {/each}
@@ -137,7 +134,7 @@
     </div>
   </div>
     <section class="panel-section">
-      <div class="section-title"><h3>책 <span class="count">{reading.booksOn(day).length}</span></h3><button type="button" class="sub small" onclick={newBook}>+ 추가</button></div>
+      <div class="section-title"><h3>책 <span class="count">{reading.booksOn(day).length}</span></h3></div>
       {#each reading.booksOn(day) as book (book.id)}
         <div class="book-card">
           <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author}</small></button>
@@ -164,14 +161,17 @@
 {/if}
 
 {#if editingBook}
-  <Modal label="책 상세" wide layer={60} onclose={() => editingBook = null}>
+  <Modal label="책 상세" extraWide layer={60} onclose={() => editingBook = null}>
     {@const book = reading.books.find((item) => item.id === editingBook?.id)}
     {#if book}
       <h2>{book.title}</h2>
-      <p class="book-meta">{book.author}</p>
-      <p class="book-dates">{book.start_day} ~ {book.end_day ?? "읽는 중"}</p>
-      <div class="actions"><button type="button" class="sub" onclick={() => editBook(book)}>책 수정</button><button type="button" class="sub danger" onclick={() => void removeBook(book)}>책 삭제</button></div>
-      <div class="section-title"><h3>메모</h3><button type="button" onclick={() => newNote(book)}>메모 추가</button></div>
+      <div class="book-summary">
+        <span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span>
+        <span class="book-meta">{book.author}</span>
+        <span class="book-dates">{book.start_day} ~ {book.end_day ?? "읽는 중"}</span>
+        <div class="actions"><button type="button" class="sub" onclick={() => editBook(book)}>책 수정</button><button type="button" class="sub danger" onclick={() => void removeBook(book)}>책 삭제</button></div>
+      </div>
+      <div class="section-title"><h3>메모</h3><button type="button" class="sub small" onclick={() => newNote(book)}>+ 메모</button></div>
       {#each reading.notesFor(book.id) as note (note.id)}
         <div class="note"><div class="note-head"><strong>{note.page}쪽</strong><div class="actions"><button type="button" class="sub" onclick={() => editNote(note)}>수정</button><button type="button" class="sub danger" onclick={() => void removeNote(note)}>삭제</button></div></div><p>{note.content}</p></div>
       {/each}
@@ -194,7 +194,7 @@
   .reading { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 2px 2px 8px; }
   h1 { font-size: 1.2rem; line-height: 1.2; white-space: nowrap; margin: 0; }
-  h2 { font-size: 1.2rem; line-height: 1.25; margin: 3px 30px 2px 0; }
+  h2 { font-size: 1.2rem; line-height: 1.25; margin: 3px 44px 8px 0; }
   h3 { margin: 0; font-size: .95rem; }
   .toolbar-actions { display: flex; gap: 5px; align-items: center; }
   .toolbar button { height: 36px; white-space: nowrap; font-size: .82rem; }
@@ -209,24 +209,24 @@
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
-  .day { grid-row: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; min-width: 0; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
+  .day { grid-row: 1 / -1; display: flex; align-items: flex-start; justify-content: flex-start; gap: 3px; min-width: 0; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day:hover { background: #eff6ff; }
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; border-radius: 50%; }
   .day-number { display: inline-grid; place-items: center; width: 22px; height: 22px; font-size: .8rem; line-height: 1; }
-  .day-marks { display: flex; gap: 2px; margin-top: 2px; font-size: .65rem; line-height: 1; }
-  .day-marks span { display: grid; place-items: center; width: 20px; height: 17px; border-radius: 4px; color: #64748b; background: #e2e8f0; font-weight: 700; }
+  .day-marks { display: flex; flex-direction: column; gap: 1px; font-size: .58rem; line-height: 1; }
+  .day-marks span { display: grid; place-items: center; width: 17px; height: 14px; border-radius: 3px; color: #64748b; background: #e2e8f0; font-weight: 700; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
   .day-marks .chaeng-mark.read { color: white; background: #be185d; }
-  .period { z-index: 1; align-self: start; display: block; min-width: 0; height: 21px; margin: 1px 2px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 6px; font-size: .7rem; line-height: 17px; font-weight: 700; }
+  .period { z-index: 1; pointer-events: none; align-self: start; display: block; min-width: 0; height: 21px; margin: 1px 2px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 6px; font-size: .7rem; line-height: 17px; font-weight: 700; }
   .period span { overflow: hidden; text-overflow: ellipsis; }
   .period.haeng { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
   .period.chaeng { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
   .period.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
   .period.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
   .side { width: clamp(320px, 36vw, 540px); flex: none; padding: 14px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
-  .day-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-right: 22px; }
+  .day-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-right: 42px; }
   .day-top h2 { flex: none; margin: 0; }
   .panel-section { min-width: 0; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
   .section-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 10px; }
@@ -249,8 +249,10 @@
   .editor input, .editor select, .editor textarea { width: 100%; padding: 9px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; background: var(--panel); color: var(--text); }
   .form-actions { display: flex; justify-content: end; gap: 8px; margin-top: 6px; }
   .form-actions button { padding: 9px 14px; font-size: .88rem; }
-  .book-meta { margin: 4px 0; color: var(--muted); }
-  .book-dates { display: inline-block; margin: 5px 0 14px; padding: 5px 9px; border-radius: 6px; background: var(--bg); font-size: .82rem; }
+  .book-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 0 14px; }
+  .book-meta { color: var(--muted); }
+  .book-dates { padding: 5px 9px; border-radius: 6px; background: var(--bg); font-size: .82rem; }
+  .book-summary .actions { margin-left: auto; }
   .danger { color: var(--danger); }
   .note { padding: 10px 0; border-top: 1px solid var(--line); }
   .note-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -267,8 +269,8 @@
     .toolbar .compact { height: 32px; padding: 0 6px; font-size: .74rem; }
     .toolbar .utility { display: none; }
     .day { padding: 2px; }
-    .day-marks { gap: 1px; font-size: .6rem; }
-    .day-marks span { width: 18px; height: 16px; }
+    .day-marks { font-size: .54rem; }
+    .day-marks span { width: 14px; height: 13px; }
     .period { padding: 1px 3px; font-size: .62rem; }
   }
 </style>
