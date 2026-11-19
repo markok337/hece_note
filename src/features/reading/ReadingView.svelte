@@ -63,7 +63,7 @@
 
 <div class="reading" class:wide={viewport.isWide}>
   <header class="toolbar">
-    <div class="heading"><span class="eyebrow">우리의 독서 기록</span><h1>{month.year}년 {month.month}월</h1></div>
+    <h1>{month.year}년 {month.month}월</h1>
     <div class="toolbar-actions">
       <button type="button" class="sub icon" aria-label="이전 달" onclick={() => { month = shiftMonth(month, -1); selected = null; }}>‹</button>
       <button type="button" class="sub icon" aria-label="다음 달" onclick={() => { month = shiftMonth(month, 1); selected = null; }}>›</button>
@@ -116,7 +116,6 @@
           </div>
         {/each}
       </div>
-      <p class="calendar-hint">날짜를 누르면 그날의 독서 체크와 책을 관리할 수 있어요.</p>
     </div>
     {#if viewport.isWide && panelDay}
       <aside class="side">{@render dayPanel(panelDay)}</aside>
@@ -130,61 +129,62 @@
 </div>
 
 {#snippet dayPanel(day: string)}
-  <div class="panel-heading"><span class="eyebrow">선택한 날짜</span><h2>{parseYmd(day).month}월 {parseYmd(day).day}일</h2><small>{day}</small></div>
-  <section class="panel-section">
-    <div class="section-title"><h3>독서한 날</h3><span class="section-caption">책과 별도로 기록해요</span></div>
-    <div class="day-checks">
-      <label class:checked={reading.day(day).haeng}><input type="checkbox" checked={reading.day(day).haeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "행이", event.currentTarget.checked)} /> <span>행이</span></label>
-      <label class:checked={reading.day(day).chaeng}><input type="checkbox" checked={reading.day(day).chaeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "챙이", event.currentTarget.checked)} /> <span>챙이</span></label>
-    </div>
-    {#if day > clock.today}<p class="hint">미래 날짜는 독서 체크를 할 수 없어요.</p>{/if}
-  </section>
-  <section class="panel-section">
-    <div class="section-title"><h3>이날의 책 <span class="count">{reading.booksOn(day).length}</span></h3><button type="button" class="sub small" onclick={newBook}>+ 책 추가</button></div>
-    {#each reading.booksOn(day) as book (book.id)}
-      <div class="book-card">
-        <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author}</small></button>
-        <button type="button" class="sub small" aria-label="{book.title} 수정" onclick={() => editBook(book)}>수정</button>
+  <div class="panel-heading"><h2>{parseYmd(day).month}월 {parseYmd(day).day}일</h2></div>
+  <div class="panel-shell"><div class="panel-content">
+    <section class="panel-section">
+      <div class="section-title"><h3>독서 체크</h3></div>
+      <div class="day-checks">
+        <label class:checked={reading.day(day).haeng}><input type="checkbox" checked={reading.day(day).haeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "행이", event.currentTarget.checked)} /> <span>행이</span></label>
+        <label class:checked={reading.day(day).chaeng}><input type="checkbox" checked={reading.day(day).chaeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "챙이", event.currentTarget.checked)} /> <span>챙이</span></label>
       </div>
-    {:else}
-      <p class="empty">아직 표시할 책이 없어요. 책을 추가해 보세요.</p>
-    {/each}
-  </section>
+    </section>
+    <section class="panel-section">
+      <div class="section-title"><h3>책 <span class="count">{reading.booksOn(day).length}</span></h3><button type="button" class="sub small" onclick={newBook}>+ 추가</button></div>
+      {#each reading.booksOn(day) as book (book.id)}
+        <div class="book-card">
+          <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author}</small></button>
+          <button type="button" class="sub small" aria-label="{book.title} 수정" onclick={() => editBook(book)}>수정</button>
+        </div>
+      {/each}
+    </section>
+  </div></div>
 {/snippet}
 
 {#if bookDraft}
-  <Modal label="책 입력" layer={70} onclose={() => bookDraft = null}>
-    <span class="eyebrow">독서 기록</span><h2>책 {reading.books.some((item) => item.id === bookDraft?.id) ? "수정" : "추가"}</h2>
+  <Modal label="책 입력" wide layer={70} onclose={() => bookDraft = null}>
+    <h2>책 {reading.books.some((item) => item.id === bookDraft?.id) ? "수정" : "추가"}</h2>
     <form class="editor" onsubmit={submitBook}>
-      <label>읽는 사람<select bind:value={bookDraft.reader}><option value="행이">행이</option><option value="챙이">챙이</option></select></label>
-      <label>제목<input bind:value={bookDraft.title} required /></label>
-      <label>글쓴이<input bind:value={bookDraft.author} required /></label>
-      <label>시작일<input type="date" bind:value={bookDraft.start_day} required /></label>
-      <label>종료일 <small>읽고 있는 중이면 비워 둔다</small><input type="date" bind:value={bookDraft.end_day} min={bookDraft.start_day} /></label>
+      <div class="editor-fields">
+        <label class="full">제목<input bind:value={bookDraft.title} required /></label>
+        <label>읽는 사람<select bind:value={bookDraft.reader}><option value="행이">행이</option><option value="챙이">챙이</option></select></label>
+        <label>글쓴이<input bind:value={bookDraft.author} required /></label>
+        <label>시작일<input type="date" bind:value={bookDraft.start_day} required /></label>
+        <label>종료일<input type="date" bind:value={bookDraft.end_day} min={bookDraft.start_day} /></label>
+      </div>
       <div class="form-actions"><button type="button" class="sub" onclick={() => bookDraft = null}>취소</button><button type="submit" disabled={!reading.loaded}>책 저장</button></div>
     </form>
   </Modal>
 {/if}
 
 {#if editingBook}
-  <Modal label="책 상세" layer={60} onclose={() => editingBook = null}>
+  <Modal label="책 상세" wide layer={60} onclose={() => editingBook = null}>
     {@const book = reading.books.find((item) => item.id === editingBook?.id)}
     {#if book}
-      <span class="eyebrow">{book.reader}의 책</span><h2>{book.title}</h2>
+      <h2>{book.title}</h2>
       <p class="book-meta">{book.author}</p>
       <p class="book-dates">{book.start_day} ~ {book.end_day ?? "읽는 중"}</p>
       <div class="actions"><button type="button" class="sub" onclick={() => editBook(book)}>책 수정</button><button type="button" class="sub danger" onclick={() => void removeBook(book)}>책 삭제</button></div>
       <div class="section-title"><h3>메모</h3><button type="button" onclick={() => newNote(book)}>메모 추가</button></div>
       {#each reading.notesFor(book.id) as note (note.id)}
         <div class="note"><strong>{note.page}쪽</strong><p>{note.content}</p><div class="actions"><button type="button" class="sub" onclick={() => editNote(note)}>수정</button><button type="button" class="sub danger" onclick={() => void removeNote(note)}>삭제</button></div></div>
-      {:else}<p class="empty">아직 메모가 없다.</p>{/each}
+      {/each}
     {/if}
   </Modal>
 {/if}
 
 {#if noteDraft && noteBookId}
-  <Modal label="메모 입력" layer={70} onclose={() => noteDraft = null}>
-    <span class="eyebrow">책에서 남긴 기록</span><h2>메모</h2>
+  <Modal label="메모 입력" wide layer={70} onclose={() => noteDraft = null}>
+    <h2>메모</h2>
     <form class="editor" onsubmit={submitNote}>
       <label>페이지<input bind:value={noteDraft.page} placeholder="예: 12 또는 12~15" required /></label>
       <label>내용<textarea bind:value={noteDraft.content} rows="6" required></textarea></label>
@@ -195,10 +195,8 @@
 
 <style>
   .reading { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .toolbar { display: flex; justify-content: space-between; align-items: end; gap: 10px; padding: 4px 2px 12px; }
-  .heading { min-width: 0; }
-  .eyebrow { display: block; color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .02em; }
-  h1 { font-size: 1.35rem; line-height: 1.2; white-space: nowrap; margin: 2px 0 0; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 2px 2px 8px; }
+  h1 { font-size: 1.2rem; line-height: 1.2; white-space: nowrap; margin: 0; }
   h2 { font-size: 1.2rem; line-height: 1.25; margin: 3px 30px 2px 0; }
   h3 { margin: 0; font-size: .95rem; }
   .toolbar-actions { display: flex; gap: 5px; align-items: center; }
@@ -228,20 +226,17 @@
   .period.chaeng { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
   .period.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
   .period.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
-  .calendar-hint { margin: 0; padding: 5px 10px; color: var(--muted); background: #f8fafc; border-top: 1px solid var(--line); font-size: .72rem; }
-  .side { width: 330px; flex: none; padding: 18px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
-  .panel-heading { margin-bottom: 18px; }
-  .panel-heading small { color: var(--muted); }
-  .panel-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .side { width: clamp(320px, 36vw, 540px); flex: none; padding: 14px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  .panel-heading { margin-bottom: 10px; }
+  .panel-shell { container-type: inline-size; }
+  .panel-content { display: grid; gap: 14px; }
+  .panel-section { min-width: 0; padding-top: 10px; border-top: 1px solid var(--line); }
   .section-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 10px; }
-  .section-caption { color: var(--muted); font-size: .7rem; }
   .count { color: var(--muted); font-size: .8rem; font-weight: 400; }
   .day-checks, .actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .day-checks label { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 110px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; font-weight: 700; }
   .day-checks label.checked { background: #eff6ff; border-color: var(--accent); }
   .day-checks input { flex: none; width: 18px; height: 18px; margin: 0; padding: 0; accent-color: var(--accent); }
-  .hint, .empty { color: var(--muted); font-size: .83rem; }
-  .empty { padding: 18px 10px; margin: 0; text-align: center; background: var(--bg); border-radius: 8px; }
   .small, .actions button { padding: 5px 9px; font-size: .8rem; }
   .book-card { display: flex; align-items: center; gap: 6px; width: 100%; margin: 6px 0; padding: 5px; color: var(--text); background: #f8fafc; border: 1px solid var(--line); border-radius: 9px; }
   .book-info { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; min-width: 0; padding: 4px; text-align: left; color: var(--text); background: transparent; }
@@ -251,9 +246,9 @@
   .haeng-text { color: #1e3a8a; background: #dbeafe; }
   .chaeng-text { color: #9d174d; background: #fce7f3; }
   .editor { display: flex; flex-direction: column; }
+  .editor-fields { display: grid; gap: 8px; }
   .editor label { display: flex; flex-direction: column; gap: 3px; font-size: .85rem; font-weight: 600; }
   .editor input, .editor select, .editor textarea { width: 100%; padding: 9px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; background: var(--panel); color: var(--text); }
-  .editor small { font-weight: 400; color: var(--muted); }
   .form-actions { display: flex; justify-content: end; gap: 8px; margin-top: 6px; }
   .form-actions button { padding: 9px 14px; font-size: .88rem; }
   .book-meta { margin: 4px 0; color: var(--muted); }
@@ -261,9 +256,15 @@
   .danger { color: var(--danger); }
   .note { padding: 10px 0; border-top: 1px solid var(--line); }
   .note p { white-space: pre-wrap; margin: 4px 0 8px; }
+  @container (min-width: 450px) {
+    .panel-content { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: start; }
+  }
+  @media (min-width: 480px) {
+    .editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .editor-fields .full { grid-column: 1 / -1; }
+  }
   @media (max-width: 719px) {
     .toolbar { align-items: center; }
-    .eyebrow { font-size: .62rem; }
     h1 { font-size: 1rem; }
     .toolbar-actions { gap: 3px; }
     .toolbar .icon { width: 30px; height: 32px; }
