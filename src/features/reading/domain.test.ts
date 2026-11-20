@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookOnDay, validateBook, weekBookSegments, type ReadingBook } from "./domain";
+import { bookOnDay, conflictingBook, validateBook, weekBookSegments, type ReadingBook } from "./domain";
 
 const book: ReadingBook = {
   id: "1", reader: "행이", title: "책", author: "글쓴이",
@@ -7,6 +7,13 @@ const book: ReadingBook = {
 };
 
 describe("독서 기간", () => {
+  it("같은 사람의 기간이 하루라도 겹치면 막고 다른 사람이나 맞닿지 않는 기간은 허용한다", () => {
+    const finished = { ...book, end_day: "2026-11-12" };
+    expect(conflictingBook({ ...book, id: "2", start_day: "2026-11-12" }, [finished])).toEqual(finished);
+    expect(conflictingBook({ ...book, id: "2", start_day: "2026-11-13" }, [finished])).toBeUndefined();
+    expect(conflictingBook({ ...book, id: "2", reader: "챙이" }, [finished])).toBeUndefined();
+    expect(conflictingBook(finished, [finished])).toBeUndefined();
+  });
   it("종료일이 없으면 오늘까지만 표시한다", () => {
     expect(bookOnDay(book, "2026-11-09", "2026-11-19")).toBe(false);
     expect(bookOnDay(book, "2026-11-10", "2026-11-19")).toBe(true);

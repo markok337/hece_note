@@ -22,6 +22,8 @@ export interface ReadingDay {
   day: string;
   haeng: boolean;
   chaeng: boolean;
+  exercise_haeng: boolean;
+  exercise_chaeng: boolean;
 }
 
 export function bookOnDay(book: ReadingBook, day: string, today: string): boolean {
@@ -62,4 +64,11 @@ export function validateBook(book: ReadingBook): string | null {
   if (!book.author.trim()) return "글쓴이를 입력한다.";
   if (book.end_day && book.end_day < book.start_day) return "종료일은 시작일보다 빠를 수 없다.";
   return null;
+}
+
+/** 같은 사람이 같은 날짜에 두 권을 읽는 기간이 겹치지 않게 한다. */
+export function conflictingBook(book: ReadingBook, books: ReadingBook[]): ReadingBook | undefined {
+  return books.find((other) => other.id !== book.id && other.reader === book.reader
+    && book.start_day <= (other.end_day ?? "9999-12-31")
+    && other.start_day <= (book.end_day ?? "9999-12-31"));
 }

@@ -51,7 +51,7 @@ export const FEATURES = [
   },
   {
     id: "reading",
-    label: "독서",
+    label: "루틴",
     view: ReadingView,
     start: () => reading.start(),
     stop: () => reading.stop(),

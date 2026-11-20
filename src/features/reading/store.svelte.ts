@@ -2,7 +2,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { clock } from "../../core/clock.svelte";
 import { notice } from "../../core/notice.svelte";
 import { SyncedStore, type Receive, type StatusHandler } from "../../core/synced-store.svelte";
-import { bookOnDay, validateBook, type Reader, type ReadingBook, type ReadingDay, type ReadingNote } from "./domain";
+import { bookOnDay, conflictingBook, validateBook, type Reader, type ReadingBook, type ReadingDay, type ReadingNote } from "./domain";
 import { deleteBook, deleteNote, fetchReading, saveBook, saveDay, saveNote, subscribeReading, unsubscribe } from "./repo";
 
 type Snapshot = Awaited<ReturnType<typeof fetchReading>>;
@@ -21,7 +21,7 @@ class ReadingStore extends SyncedStore<Snapshot> {
   }
 
   day(day: string): ReadingDay {
-    return this.days[day] ?? { day, haeng: false, chaeng: false };
+    return this.days[day] ?? { day, haeng: false, chaeng: false, exercise_haeng: false, exercise_chaeng: false };
   }
 
   protected fetchSnapshot(): Promise<Snapshot> { return fetchReading(); }
@@ -39,6 +39,8 @@ class ReadingStore extends SyncedStore<Snapshot> {
   async putBook(book: ReadingBook): Promise<boolean> {
     const error = validateBook(book);
     if (error) { notice.say("err", error); return false; }
+    const conflict = conflictingBook(book, this.books);
+    if (conflict) { notice.say("err", `${book.reader}의 독서 기간이 「${conflict.title}」과 겹칩니다. 하루에 한 권만 등록할 수 있습니다.`); return false; }
     return this.write(
       () => { this.books = [...this.books.filter((item) => item.id !== book.id), book]; },
       () => saveBook(book), "책 저장 실패",
@@ -64,9 +66,10 @@ class ReadingStore extends SyncedStore<Snapshot> {
     return this.write(() => { this.notes = this.notes.filter((note) => note.id !== id); }, () => deleteNote(id), "메모 삭제 실패");
   }
 
-  async check(day: string, reader: Reader, checked: boolean): Promise<boolean> {
+  async check(day: string, reader: Reader, checked: boolean, routine: "reading" | "exercise" = "reading"): Promise<boolean> {
     if (day > clock.today) { notice.say("err", "미래 날짜는 체크할 수 없다."); return false; }
-    const next = { ...this.day(day), [reader === "행이" ? "haeng" : "chaeng"]: checked };
+    const field = routine === "exercise" ? (reader === "행이" ? "exercise_haeng" : "exercise_chaeng") : (reader === "행이" ? "haeng" : "chaeng");
+    const next = { ...this.day(day), [field]: checked };
     return this.write(() => { this.days[day] = next; }, () => saveDay(next), "독서 체크 저장 실패");
   }
 }

@@ -21,9 +21,12 @@ export async function fetchReading() {
       return data as ReadingNote[];
     }),
     fetchAllPages(async (from, to) => {
-      const { data, error } = await client().from("reading_days").select("day,haeng,chaeng").order("day").range(from, to);
-      if (error) throw error;
-      return data as ReadingDay[];
+      const { data, error } = await client().from("reading_days").select("day,haeng,chaeng,exercise_haeng,exercise_chaeng").order("day").range(from, to);
+      if (!error) return data as ReadingDay[];
+      if (error.code !== "42703" && error.code !== "PGRST204") throw error;
+      const previous = await client().from("reading_days").select("day,haeng,chaeng").order("day").range(from, to);
+      if (previous.error) throw previous.error;
+      return (previous.data ?? []).map((day) => ({ ...day, exercise_haeng: false, exercise_chaeng: false })) as ReadingDay[];
     }),
   ]);
   return { books, notes, days };
@@ -51,7 +54,13 @@ export async function deleteNote(id: string): Promise<void> {
 
 export async function saveDay(day: ReadingDay): Promise<void> {
   const { error } = await client().from("reading_days").upsert(day, { onConflict: "day" });
-  if (error) throw error;
+  if (!error) return;
+  if ((error.code === "42703" || error.code === "PGRST204") && !day.exercise_haeng && !day.exercise_chaeng) {
+    const previous = await client().from("reading_days").upsert({ day: day.day, haeng: day.haeng, chaeng: day.chaeng }, { onConflict: "day" });
+    if (!previous.error) return;
+    throw previous.error;
+  }
+  throw error;
 }
 
 export function subscribeReading(onChange: () => void, onStatus: (live: boolean) => void): RealtimeChannel {

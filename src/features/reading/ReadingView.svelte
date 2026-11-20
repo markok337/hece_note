@@ -85,7 +85,7 @@
         {#each weeks as week (week[0])}
           {@const segments = weekBookSegments(week, reading.books, clock.today)}
           {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 1}
-          <div class="week" style:grid-template-rows="38px repeat({laneCount}, minmax(24px, 1fr))" style:min-height="{Math.max(82, 42 + laneCount * 24)}px" style:flex-grow={1}>
+          <div class="week" style:grid-template-rows="28px repeat({laneCount}, 25px) minmax(42px, 1fr)" style:min-height="{70 + laneCount * 25}px" style:flex-grow={1}>
             {#each week as day, index (day)}
               <button
                 type="button"
@@ -94,11 +94,14 @@
                 class:chosen={selected === day}
                 class:today={day === clock.today}
                 style:grid-column={index + 1}
-                aria-label="{day} 독서 기록 보기. 행이 {reading.day(day).haeng ? '읽음' : '미체크'}, 챙이 {reading.day(day).chaeng ? '읽음' : '미체크'}"
+                aria-label="{day} 루틴 기록 보기. 독서 행이 {reading.day(day).haeng ? '완료' : '미체크'}, 챙이 {reading.day(day).chaeng ? '완료' : '미체크'}. 운동 행이 {reading.day(day).exercise_haeng ? '완료' : '미체크'}, 챙이 {reading.day(day).exercise_chaeng ? '완료' : '미체크'}"
                 onclick={() => chooseDay(day)}
               >
                 <span class="day-number">{parseYmd(day).day}</span>
-                <span class="day-marks"><span class="haeng-mark" class:read={reading.day(day).haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).chaeng}>챙</span></span>
+                <span class="day-marks">
+                  <span class="mark-row"><span class="mark-label">독서</span><span class="haeng-mark" class:read={reading.day(day).haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).chaeng}>챙</span></span>
+                  <span class="mark-row"><span class="mark-label">운동</span><span class="haeng-mark" class:read={reading.day(day).exercise_haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).exercise_chaeng}>챙</span></span>
+                </span>
               </button>
             {/each}
             {#each segments as segment (segment.book.id)}
@@ -128,6 +131,9 @@
 {#snippet dayPanel(day: string)}
   <div class="day-top">
     <h2>{parseYmd(day).month}월 {parseYmd(day).day}일</h2>
+  </div>
+  <div class="day-reading-title">
+    <h3>독서</h3>
     <div class="day-checks" role="group" aria-label="독서 체크">
       <label class:checked={reading.day(day).haeng}><input type="checkbox" checked={reading.day(day).haeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "행이", event.currentTarget.checked)} /> <span>행이</span></label>
       <label class:checked={reading.day(day).chaeng}><input type="checkbox" checked={reading.day(day).chaeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "챙이", event.currentTarget.checked)} /> <span>챙이</span></label>
@@ -144,6 +150,13 @@
       {/each}
     </section>
   {/if}
+  <div class="day-reading-title exercise-title">
+    <h3>운동</h3>
+    <div class="day-checks" role="group" aria-label="운동 체크">
+      <label class:checked={reading.day(day).exercise_haeng}><input type="checkbox" checked={reading.day(day).exercise_haeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "행이", event.currentTarget.checked, "exercise")} /> <span>행이</span></label>
+      <label class:checked={reading.day(day).exercise_chaeng}><input type="checkbox" checked={reading.day(day).exercise_chaeng} disabled={day > clock.today || !reading.loaded} onchange={(event) => void reading.check(day, "챙이", event.currentTarget.checked, "exercise")} /> <span>챙이</span></label>
+    </div>
+  </div>
 {/snippet}
 
 {#if bookDraft}
@@ -211,14 +224,16 @@
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
-  .day { grid-row: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; column-gap: 4px; min-width: 0; overflow: hidden; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
+  .day { grid-row: 1 / -1; position: relative; display: block; min-width: 0; overflow: hidden; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day:hover { background: #eff6ff; }
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; }
-  .day-number { display: grid; place-items: center; width: 100%; height: 22px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
-  .day-marks { display: contents; font-size: .72rem; line-height: 1; }
-  .day-marks span { display: grid; place-items: center; width: 100%; height: 22px; border-radius: 5px; color: #334155; background: #dbe2eb; font-weight: 800; }
+  .day-number { display: grid; place-items: center; width: 25px; height: 22px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
+  .day-marks { position: absolute; inset: auto 3px 3px; display: grid; gap: 2px; font-size: .65rem; line-height: 1; }
+  .mark-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, .7fr)); gap: 2px; }
+  .mark-row span { display: grid; place-items: center; min-width: 0; height: 17px; border-radius: 4px; color: #334155; background: #dbe2eb; font-weight: 800; }
+  .mark-row .mark-label { background: transparent; font-weight: 700; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
   .day-marks .chaeng-mark.read { color: white; background: #be185d; }
   .period { z-index: 1; pointer-events: none; align-self: start; display: block; min-width: 0; height: 21px; margin: 1px 2px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 6px; font-size: .7rem; line-height: 17px; font-weight: 700; }
@@ -229,7 +244,9 @@
   .period.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
   .day-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-right: 42px; }
   .day-top h2 { flex: none; margin: 0; }
-  .day-books { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .day-reading-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; }
+  .exercise-title { padding-top: 12px; border-top: 1px solid var(--line); }
+  .day-books { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
   .section-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 10px; }
   .day-checks, .actions { display: flex; gap: 5px; flex-wrap: wrap; }
   .day-checks label { display: flex; align-items: center; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: .82rem; font-weight: 700; }
@@ -266,7 +283,7 @@
     .day { column-gap: 2px; padding: 2px 1px; }
     .day-number { height: 20px; font-size: .72rem; }
     .day-marks { font-size: .68rem; }
-    .day-marks span { height: 20px; }
+    .mark-row span { height: 17px; }
   }
   @media (min-width: 360px) and (max-width: 1100px) {
     .day { padding: 2px; }
