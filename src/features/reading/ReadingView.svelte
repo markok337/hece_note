@@ -85,7 +85,7 @@
         {#each weeks as week (week[0])}
           {@const segments = weekBookSegments(week, reading.books, clock.today)}
           {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 1}
-          <div class="week" style:grid-template-rows="30px repeat({laneCount}, 25px) minmax(42px, 1fr)" style:min-height="{80 + laneCount * 25}px" style:flex-grow={1}>
+          <div class="week" style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) minmax(var(--status-row), 1fr)" style:flex-grow={1}>
             {#each week as day, index (day)}
               <button
                 type="button"
@@ -234,23 +234,23 @@
   .weekdays div { padding: 5px; text-align: center; font-size: .78rem; font-weight: 700; }
   .weekdays div:first-child { color: #b91c1c; }
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
-  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 4px; min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
+  .week { --date-row: 20px; --bar-row: 18px; --status-row: 30px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 1px; flex-shrink: 0; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
   .day { display: block; min-width: 0; overflow: hidden; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
-  .day-date { padding: 4px 5px; }
-  .day-status { padding: 2px 3px; }
+  .day-date { padding: 1px 3px; }
+  .day-status { padding: 1px 3px; }
   .day:hover { background: #eff6ff; }
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; }
-  .day-number { display: grid; place-items: center; width: 25px; height: 22px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
-  .day-marks { display: grid; gap: 2px; font-size: .65rem; line-height: 1; }
-  .mark-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, .7fr)); gap: 2px; }
-  .mark-row span { display: grid; place-items: center; min-width: 0; height: 17px; border-radius: 4px; color: #334155; background: #dbe2eb; font-weight: 800; }
+  .day-number { display: grid; place-items: center; width: 22px; height: 18px; border-radius: 5px; background: #f1f5f9; font-size: .75rem; font-weight: 700; line-height: 1; }
+  .day-marks { display: grid; gap: 1px; font-size: .62rem; line-height: 1; }
+  .mark-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, .7fr)); gap: 1px; }
+  .mark-row span { display: grid; place-items: center; min-width: 0; height: 13px; border-radius: 4px; color: #334155; background: #dbe2eb; font-weight: 800; }
   .mark-row .mark-label { background: transparent; font-weight: 700; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
   .day-marks .chaeng-mark.read { color: white; background: #be185d; }
-  .period { z-index: 1; pointer-events: none; align-self: start; display: block; min-width: 0; height: 21px; margin: 1px 2px; padding: 1px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 6px; font-size: .7rem; line-height: 17px; font-weight: 700; }
+  .period { z-index: 1; pointer-events: none; align-self: start; display: block; min-width: 0; height: 16px; margin: 1px 2px; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 1px solid transparent; border-radius: 5px; font-size: .65rem; line-height: 14px; font-weight: 700; }
   .period span { overflow: hidden; text-overflow: ellipsis; }
   .period.haeng { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
   .period.chaeng { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
@@ -294,24 +294,24 @@
     .editor-fields .full { grid-column: 1 / -1; }
   }
   @media (max-width: 1100px) {
-    .day-date { padding: 2px 1px; }
-    .day-status { padding: 2px 1px; }
-    .day-number { height: 20px; font-size: .72rem; }
-    .day-marks { font-size: .68rem; }
-    .mark-row span { height: 17px; }
+    .day-date { padding: 1px; }
+    .day-status { padding: 1px; }
   }
   @media (min-width: 360px) and (max-width: 1100px) {
-    .day-date { padding: 2px; }
-    .day-status { padding: 2px; }
-    .day-number { font-size: .72rem; }
+    .day-date { padding: 1px 2px; }
+    .day-status { padding: 1px 2px; }
   }
   @media (max-width: 719px) {
+    .week { --date-row: 18px; --bar-row: 16px; --status-row: 26px; }
+    .day-number { width: 20px; height: 16px; font-size: .68rem; }
+    .day-marks { font-size: .55rem; }
+    .mark-row span { height: 11px; }
     .toolbar { align-items: center; }
     h1 { font-size: 1rem; }
     .toolbar-actions { gap: 3px; }
     .toolbar .icon { width: 30px; height: 32px; }
     .toolbar .compact { height: 32px; padding: 0 6px; font-size: .74rem; }
     .toolbar .utility { display: none; }
-    .period { padding: 1px 3px; font-size: .62rem; }
+    .period { height: 14px; padding: 0 3px; font-size: .58rem; line-height: 12px; }
   }
 </style>
