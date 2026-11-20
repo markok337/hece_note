@@ -85,7 +85,7 @@
         {#each weeks as week (week[0])}
           {@const segments = weekBookSegments(week, reading.books, clock.today)}
           {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 1}
-          <div class="week" style:grid-template-rows="28px repeat({laneCount}, 25px) minmax(42px, 1fr)" style:min-height="{70 + laneCount * 25}px" style:flex-grow={1}>
+          <div class="week" style:grid-template-rows="32px repeat({laneCount}, 25px) minmax(42px, 1fr)" style:min-height="{82 + laneCount * 25}px" style:flex-grow={1}>
             {#each week as day, index (day)}
               <button
                 type="button"
@@ -222,14 +222,14 @@
   .weekdays div { padding: 5px; text-align: center; font-size: .78rem; font-weight: 700; }
   .weekdays div:first-child { color: #b91c1c; }
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
-  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
+  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 4px; min-height: 82px; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
   .day { grid-row: 1 / -1; position: relative; display: block; min-width: 0; overflow: hidden; padding: 4px 5px; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day:hover { background: #eff6ff; }
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.today .day-number { background: var(--today); color: white; }
-  .day-number { display: grid; place-items: center; width: 25px; height: 22px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
+  .day-number { position: relative; z-index: 2; display: grid; place-items: center; width: 25px; height: 22px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
   .day-marks { position: absolute; inset: auto 3px 3px; display: grid; gap: 2px; font-size: .65rem; line-height: 1; }
   .mark-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, .7fr)); gap: 2px; }
   .mark-row span { display: grid; place-items: center; min-width: 0; height: 17px; border-radius: 4px; color: #334155; background: #dbe2eb; font-weight: 800; }
