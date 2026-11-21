@@ -84,7 +84,7 @@
       <div class="weeks">
         {#each weeks as week (week[0])}
           {@const segments = weekBookSegments(week, reading.books, clock.today)}
-          {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 0}
+          {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 1}
           <div class="week" style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) var(--status-row) minmax(0, 1fr)">
             {#each week as day, index (day)}
               <button
