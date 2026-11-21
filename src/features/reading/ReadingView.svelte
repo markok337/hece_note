@@ -84,8 +84,8 @@
       <div class="weeks">
         {#each weeks as week (week[0])}
           {@const segments = weekBookSegments(week, reading.books, clock.today)}
-          {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 1}
-          <div class="week" style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) minmax(var(--status-row), 1fr)" style:flex-grow={1}>
+          {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 0}
+          <div class="week" style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) var(--status-row) minmax(0, 1fr)" style:flex-grow={1}>
             {#each week as day, index (day)}
               <button
                 type="button"
@@ -95,7 +95,7 @@
                 class:today={day === clock.today}
                 style:grid-column={index + 1}
                 style:grid-row="1 / -1"
-                style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) minmax(var(--status-row), 1fr)"
+                style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) var(--status-row) minmax(0, 1fr)"
                 aria-label="{day} 독서 행이 {reading.day(day).haeng ? '완료' : '미체크'}, 챙이 {reading.day(day).chaeng ? '완료' : '미체크'}. 운동 행이 {reading.day(day).exercise_haeng ? '완료' : '미체크'}, 챙이 {reading.day(day).exercise_chaeng ? '완료' : '미체크'}"
                 onclick={() => chooseDay(day)}
               >
@@ -226,15 +226,15 @@
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .week { --date-row: 22px; --bar-row: 18px; --status-row: 36px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 1px; flex-shrink: 0; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
-  .day { z-index: 1; display: grid; row-gap: 1px; align-items: stretch; min-width: 0; overflow: hidden; padding: 0; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
+  .day { z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 1px; align-items: stretch; min-width: 0; overflow: hidden; padding: 0; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day:not(.chosen):hover { background: #eff6ff; }
   .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
   .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .day.today .day-number { background: var(--today); color: white; }
   .day-number { display: grid; place-items: center; align-self: center; width: 24px; height: 20px; margin-left: 2px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
-  .day-marks { display: grid; align-content: center; gap: 1px; margin: 0 2px; font-size: .72rem; line-height: 1; }
-  .mark-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, .7fr)); gap: 1px; }
+  .day-marks { display: grid; align-content: start; min-width: 0; gap: 1px; margin: 0 1px; padding-top: 2px; font-size: .72rem; line-height: 1; }
+  .mark-row { display: grid; grid-template-columns: 24px repeat(2, minmax(0, 1fr)); gap: 1px; }
   .mark-row span { display: grid; place-items: center; min-width: 0; height: 16px; border-radius: 4px; color: #334155; background: #dbe2eb; font-weight: 800; }
   .mark-row .mark-label { background: transparent; font-weight: 700; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
