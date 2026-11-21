@@ -85,7 +85,7 @@
         {#each weeks as week (week[0])}
           {@const segments = weekBookSegments(week, reading.books, clock.today)}
           {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 0}
-          <div class="week" style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) var(--status-row) minmax(0, 1fr)" style:flex-grow={1}>
+          <div class="week" style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) var(--status-row) minmax(0, 1fr)">
             {#each week as day, index (day)}
               <button
                 type="button"
@@ -224,7 +224,7 @@
   .weekdays div { padding: 5px; text-align: center; font-size: .78rem; font-weight: 700; }
   .weekdays div:first-child { color: #b91c1c; }
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
-  .week { --date-row: 22px; --bar-row: 18px; --status-row: 36px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 1px; flex-shrink: 0; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
+  .week { --date-row: 22px; --bar-row: 18px; --status-row: 36px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 1px; flex: 1 0 0; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
   .day { z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 1px; align-items: stretch; min-width: 0; overflow: hidden; padding: 0; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day:not(.chosen):hover { background: #eff6ff; }
