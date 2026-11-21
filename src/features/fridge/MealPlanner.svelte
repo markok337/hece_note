@@ -1,5 +1,6 @@
 <script lang="ts">
   import { clock } from "../../core/clock.svelte";
+  import { monthSwipe } from "../../core/month-swipe";
   import { notice } from "../../core/notice.svelte";
   import { monthGrid, parseYmd, shiftMonth, weekday, type MonthRef } from "../../core/dates";
   import { MEAL_LABELS, MEAL_MAX, MEAL_SLOTS, validateMeal, type MealSlot } from "./domain";
@@ -74,7 +75,7 @@
         <span class:sun={i === 0} class:sat={i === 6}>{name}</span>
       {/each}
     </div>
-    <div class="grid" style:grid-template-rows={`repeat(${weeks.length}, minmax(0, 1fr))`}>
+    <div class="grid" use:monthSwipe={(direction) => go(direction === "prev" ? -1 : 1)} style:grid-template-rows={`repeat(${weeks.length}, minmax(0, 1fr))`}>
       {#each weeks as week (week[0])}
         {#each week as day (day)}
           {@const meal = fridge.mealOn(day)}
@@ -132,7 +133,7 @@
   .sun { color: var(--danger); }
   .sat { color: var(--accent-strong); }
 
-  .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+  .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; touch-action: pan-y; }
   .cell {
     display: flex;
     flex-direction: column;

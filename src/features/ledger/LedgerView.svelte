@@ -1,5 +1,6 @@
 <script lang="ts">
   import { clock } from "../../core/clock.svelte";
+  import { monthSwipe } from "../../core/month-swipe";
   import { parseYmd, shiftMonth, type MonthRef } from "../../core/dates";
   import { notice } from "../../core/notice.svelte";
   import { session } from "../../core/session.svelte";
@@ -144,7 +145,7 @@ ${await inboxSummary(senders)}`;
   </div>
 
   <!-- 넓은 화면에서도 내용이 한쪽으로 퍼지지 않게 폭을 제한하고 가운데에 둔다. -->
-  <div class="content" id="ledger-panel" role="tabpanel" aria-labelledby="ledger-tab-{view}">
+  <div class="content" id="ledger-panel" role="tabpanel" aria-labelledby="ledger-tab-{view}" use:monthSwipe={(direction) => { if (view !== "list" && view !== "settlement") return false; step(direction === "prev" ? -1 : 1); }}>
     {#if view === "list"}
       <BudgetStrip spent={stats.total} {budget} perf={perf} {olive} />
       <EntryList {groups} onedit={(entry) => (editing = entry)} />
@@ -225,6 +226,7 @@ ${await inboxSummary(senders)}`;
   .add { flex-shrink: 0; height: 34px; padding: 0 12px; font-size: 0.9rem; white-space: nowrap; }
 
   .content {
+    touch-action: pan-y;
     flex: 1;
     min-height: 0;
     display: flex;

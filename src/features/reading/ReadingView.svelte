@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { clock } from "../../core/clock.svelte";
+  import { monthSwipe } from "../../core/month-swipe";
   import { monthGrid, parseYmd, shiftMonth, type MonthRef } from "../../core/dates";
   import { session } from "../../core/session.svelte";
   import Modal from "../../ui/Modal.svelte";
@@ -77,7 +78,7 @@
     </div>
   </header>
   <div class="body">
-    <div class="calendar" aria-label="독서 달력">
+    <div class="calendar" aria-label="독서 달력" use:monthSwipe={(direction) => { month = shiftMonth(month, direction === "prev" ? -1 : 1); selected = null; }}>
       <div class="weekdays">
         {#each ["일", "월", "화", "수", "목", "금", "토"] as label}<div>{label}</div>{/each}
       </div>
@@ -219,7 +220,7 @@
   .toolbar .compact { padding: 0 10px; }
   .primary { background: var(--accent); color: var(--accent-text); }
   .body { flex: 1; display: flex; min-height: 0; gap: 12px; }
-  .calendar { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  .calendar { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; touch-action: pan-y; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
   .weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--table-head); border-bottom: 1px solid var(--line); }
   .weekdays div { padding: 5px; text-align: center; font-size: .78rem; font-weight: 700; }
   .weekdays div:first-child { color: #b91c1c; }
