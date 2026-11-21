@@ -87,36 +87,20 @@
           {@const laneCount = segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 1}
           <div class="week" style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) minmax(var(--status-row), 1fr)" style:flex-grow={1}>
             {#each week as day, index (day)}
-              {#if parseYmd(day).month !== month.month}
-                <div class="outside-cell" style:grid-column={index + 1} style:grid-row="1 / -1" aria-hidden="true"></div>
-              {/if}
-              {#if selected === day}
-                <div class="selected-cell" style:grid-column={index + 1} style:grid-row="1 / -1" aria-hidden="true"></div>
-              {/if}
               <button
                 type="button"
-                class="day day-date"
+                class="day"
                 class:outside={parseYmd(day).month !== month.month}
                 class:chosen={selected === day}
                 class:today={day === clock.today}
                 style:grid-column={index + 1}
-                style:grid-row={1}
-                aria-label="{day} 루틴 기록 보기"
-                onclick={() => chooseDay(day)}
-              >
-                <span class="day-number">{parseYmd(day).day}</span>
-              </button>
-              <button
-                type="button"
-                class="day day-status"
-                class:outside={parseYmd(day).month !== month.month}
-                class:chosen={selected === day}
-                style:grid-column={index + 1}
-                style:grid-row={laneCount + 2}
+                style:grid-row="1 / -1"
+                style:grid-template-rows="var(--date-row) repeat({laneCount}, var(--bar-row)) minmax(var(--status-row), 1fr)"
                 aria-label="{day} 독서 행이 {reading.day(day).haeng ? '완료' : '미체크'}, 챙이 {reading.day(day).chaeng ? '완료' : '미체크'}. 운동 행이 {reading.day(day).exercise_haeng ? '완료' : '미체크'}, 챙이 {reading.day(day).exercise_chaeng ? '완료' : '미체크'}"
                 onclick={() => chooseDay(day)}
               >
-                <span class="day-marks">
+                <span class="day-number">{parseYmd(day).day}</span>
+                <span class="day-marks" style:grid-row={laneCount + 2}>
                   <span class="mark-row"><span class="mark-label">독서</span><span class="haeng-mark" class:read={reading.day(day).haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).chaeng}>챙</span></span>
                   <span class="mark-row"><span class="mark-label">운동</span><span class="haeng-mark" class:read={reading.day(day).exercise_haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).exercise_chaeng}>챙</span></span>
                 </span>
@@ -242,16 +226,14 @@
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .week { --date-row: 22px; --bar-row: 18px; --status-row: 36px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 1px; flex-shrink: 0; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
-  .outside-cell { z-index: 0; background: rgb(226 232 240 / .45); pointer-events: none; }
-  .selected-cell { z-index: 0; background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); pointer-events: none; }
-  .day { position: relative; z-index: 1; display: block; min-width: 0; overflow: hidden; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
-  .day-date { padding: 1px 3px; }
-  .day-status { padding: 1px 3px; }
-  .day:hover { background: #eff6ff; }
-  .day.outside { color: var(--muted); }
+  .day { z-index: 1; display: grid; row-gap: 1px; align-items: stretch; min-width: 0; overflow: hidden; padding: 0; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
+  .day:not(.chosen):hover { background: #eff6ff; }
+  .day.outside { color: var(--muted); background: rgb(226 232 240 / .45); }
+  .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
+  .day:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .day.today .day-number { background: var(--today); color: white; }
-  .day-number { display: grid; place-items: center; width: 24px; height: 20px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
-  .day-marks { display: grid; gap: 1px; font-size: .72rem; line-height: 1; }
+  .day-number { display: grid; place-items: center; align-self: center; width: 24px; height: 20px; margin-left: 2px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
+  .day-marks { display: grid; align-content: center; gap: 1px; margin: 0 2px; font-size: .72rem; line-height: 1; }
   .mark-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, .7fr)); gap: 1px; }
   .mark-row span { display: grid; place-items: center; min-width: 0; height: 16px; border-radius: 4px; color: #334155; background: #dbe2eb; font-weight: 800; }
   .mark-row .mark-label { background: transparent; font-weight: 700; }
@@ -300,14 +282,6 @@
   @media (min-width: 360px) {
     .editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .editor-fields .full { grid-column: 1 / -1; }
-  }
-  @media (max-width: 1100px) {
-    .day-date { padding: 1px; }
-    .day-status { padding: 1px; }
-  }
-  @media (min-width: 360px) and (max-width: 1100px) {
-    .day-date { padding: 1px 2px; }
-    .day-status { padding: 1px 2px; }
   }
   @media (max-width: 719px) {
     .week { --date-row: 20px; --bar-row: 16px; --status-row: 32px; }
