@@ -90,6 +90,9 @@
               {#if parseYmd(day).month !== month.month}
                 <div class="outside-cell" style:grid-column={index + 1} style:grid-row="1 / -1" aria-hidden="true"></div>
               {/if}
+              {#if selected === day}
+                <div class="selected-cell" style:grid-column={index + 1} style:grid-row="1 / -1" aria-hidden="true"></div>
+              {/if}
               <button
                 type="button"
                 class="day day-date"
@@ -114,12 +117,8 @@
                 onclick={() => chooseDay(day)}
               >
                 <span class="day-marks">
-                  {#if reading.day(day).haeng || reading.day(day).chaeng}
-                    <span class="mark-row"><span class="mark-label">독서</span><span class="haeng-mark" class:read={reading.day(day).haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).chaeng}>챙</span></span>
-                  {/if}
-                  {#if reading.day(day).exercise_haeng || reading.day(day).exercise_chaeng}
-                    <span class="mark-row"><span class="mark-label">운동</span><span class="haeng-mark" class:read={reading.day(day).exercise_haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).exercise_chaeng}>챙</span></span>
-                  {/if}
+                  <span class="mark-row"><span class="mark-label">독서</span><span class="haeng-mark" class:read={reading.day(day).haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).chaeng}>챙</span></span>
+                  <span class="mark-row"><span class="mark-label">운동</span><span class="haeng-mark" class:read={reading.day(day).exercise_haeng}>행</span><span class="chaeng-mark" class:read={reading.day(day).exercise_chaeng}>챙</span></span>
                 </span>
               </button>
             {/each}
@@ -241,20 +240,20 @@
   .weekdays div { padding: 5px; text-align: center; font-size: .78rem; font-weight: 700; }
   .weekdays div:first-child { color: #b91c1c; }
   .weeks { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
-  .week { --date-row: 20px; --bar-row: 18px; --status-row: 30px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 1px; flex-shrink: 0; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
+  .week { --date-row: 22px; --bar-row: 18px; --status-row: 36px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 1px; flex-shrink: 0; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to right, transparent 0, transparent calc(14.2857% - 1px), var(--line) calc(14.2857% - 1px), var(--line) 14.2857%); }
   .week:last-child { border-bottom: 0; }
   .outside-cell { z-index: 0; background: rgb(226 232 240 / .45); pointer-events: none; }
+  .selected-cell { z-index: 0; background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); pointer-events: none; }
   .day { position: relative; z-index: 1; display: block; min-width: 0; overflow: hidden; background: transparent; color: var(--text); text-align: left; border-radius: 0; }
   .day-date { padding: 1px 3px; }
   .day-status { padding: 1px 3px; }
   .day:hover { background: #eff6ff; }
-  .day.chosen { background: #dbeafe; box-shadow: inset 0 0 0 2px var(--accent); }
   .day.outside { color: var(--muted); }
   .day.today .day-number { background: var(--today); color: white; }
-  .day-number { display: grid; place-items: center; width: 22px; height: 18px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
+  .day-number { display: grid; place-items: center; width: 24px; height: 20px; border-radius: 5px; background: #f1f5f9; font-size: .82rem; font-weight: 700; line-height: 1; }
   .day-marks { display: grid; gap: 1px; font-size: .72rem; line-height: 1; }
   .mark-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, .7fr)); gap: 1px; }
-  .mark-row span { display: grid; place-items: center; min-width: 0; height: 13px; border-radius: 4px; color: #334155; background: #dbe2eb; font-weight: 800; }
+  .mark-row span { display: grid; place-items: center; min-width: 0; height: 16px; border-radius: 4px; color: #334155; background: #dbe2eb; font-weight: 800; }
   .mark-row .mark-label { background: transparent; font-weight: 700; }
   .day-marks .haeng-mark.read { color: white; background: #1d4ed8; }
   .day-marks .chaeng-mark.read { color: white; background: #be185d; }
@@ -311,10 +310,10 @@
     .day-status { padding: 1px 2px; }
   }
   @media (max-width: 719px) {
-    .week { --date-row: 18px; --bar-row: 16px; --status-row: 26px; }
-    .day-number { width: 20px; height: 16px; font-size: .72rem; }
+    .week { --date-row: 20px; --bar-row: 16px; --status-row: 32px; }
+    .day-number { width: 22px; height: 18px; font-size: .72rem; }
     .day-marks { font-size: .68rem; }
-    .mark-row span { height: 11px; }
+    .mark-row span { height: 14px; }
     .toolbar { align-items: center; }
     h1 { font-size: 1rem; }
     .toolbar-actions { gap: 3px; }
