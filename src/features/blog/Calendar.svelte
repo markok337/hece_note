@@ -228,7 +228,7 @@
 
   function dropState(day: string): "ok" | "no" | null {
     if (!drag || drag.over !== day || day === drag.from) return null;
-    return moveBlock(blog.stored(drag.from), blog.stored(day)) ? "no" : "ok";
+    return moveBlock(blog.stored(drag.from)) ? "no" : "ok";
   }
 </script>
 

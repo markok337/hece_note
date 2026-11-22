@@ -138,16 +138,15 @@ export function colorLabel(color: CellColor): string {
 }
 
 /** 날짜 이동이 가능한지. 불가능하면 이유를 돌려준다. */
-export function moveBlock(from: BlogDay | null, to: BlogDay | null): string | null {
+export function moveBlock(from: BlogDay | null): string | null {
   if (from === null || !hasContent(from)) return "옮길 내용이 없다.";
-  if (to !== null && to.topic !== null) return "도착 날짜에 주제가 있어 옮길 수 없다.";
   return null;
 }
 
-/** 이동 결과: 도착 날짜는 옮긴 아이템, 출발 날짜는 분야만 남은 빈 아이템. */
-export function applyMove(from: BlogDay, toDay: string): { moved: BlogDay; vacated: BlogDay } {
+/** 이동 결과: 도착 날짜의 내용이 있으면 출발 날짜와 맞바꾼다. */
+export function applyMove(from: BlogDay, toDay: string, to: BlogDay | null): { moved: BlogDay; vacated: BlogDay } {
   return {
     moved: { ...from, day: toDay },
-    vacated: emptyDay(from.day, from.category),
+    vacated: to && hasContent(to) ? { ...to, day: from.day } : emptyDay(from.day, from.category),
   };
 }

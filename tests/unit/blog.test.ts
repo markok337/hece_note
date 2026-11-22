@@ -148,24 +148,26 @@ describe("moveBlock / applyMove", () => {
   const source = day({ day: "2026-11-10", assignee: "행이", topic: "a" });
 
   it("내용이 없는 날은 옮길 수 없다", () => {
-    expect(moveBlock(day(), null)).not.toBeNull();
-    expect(moveBlock(null, null)).not.toBeNull();
+    expect(moveBlock(day())).not.toBeNull();
+    expect(moveBlock(null)).not.toBeNull();
   });
 
-  it("도착 날짜에 주제가 있으면 막는다", () => {
-    const target = day({ day: "2026-11-12", assignee: "챙이", topic: "b" });
-    expect(moveBlock(source, target)).not.toBeNull();
-  });
-
-  it("도착 날짜가 비었거나 담당까지만 있으면 허용한다", () => {
-    expect(moveBlock(source, null)).toBeNull();
-    expect(moveBlock(source, day({ day: "2026-11-12", assignee: "챙이" }))).toBeNull();
+  it("내용 있는 날짜는 이동할 수 있다", () => {
+    expect(moveBlock(source)).toBeNull();
   });
 
   it("분야는 따라가고 출발 날짜에는 분야만 남는다", () => {
-    const { moved, vacated } = applyMove(source, "2026-11-12");
+    const { moved, vacated } = applyMove(source, "2026-11-12", null);
     expect(moved).toEqual({ ...source, day: "2026-11-12" });
     expect(vacated).toEqual(emptyDay("2026-11-10", "뷰티"));
+  });
+
+  it("도착 날짜에 내용이 있으면 두 아이템의 날짜를 맞바꾼다", () => {
+    const target = day({ day: "2026-11-12", assignee: "챙이", topic: "b", photo: true });
+    expect(applyMove(source, target.day, target)).toEqual({
+      moved: { ...source, day: target.day },
+      vacated: { ...target, day: source.day },
+    });
   });
 });
 

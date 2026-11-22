@@ -74,6 +74,20 @@ describe("저장 차단", () => {
   });
 });
 
+describe("날짜 교환", () => {
+  it("내용이 있는 두 날짜를 옮기면 화면의 두 아이템이 맞바뀐다", async () => {
+    repo.fetchDays.mockResolvedValue([
+      row("2026-11-10", { topic: "첫째" }),
+      row("2026-11-12", { topic: "둘째", assignee: "챙이" }),
+    ]);
+    await blog.load();
+    expect(await blog.move("2026-11-10", "2026-11-12")).toBe(true);
+    expect(blog.stored("2026-11-10")?.topic).toBe("둘째");
+    expect(blog.stored("2026-11-12")?.topic).toBe("첫째");
+    expect(repo.moveDay).toHaveBeenCalledWith("2026-11-10", "2026-11-12");
+  });
+});
+
 describe("불러오기와 쓰기가 겹칠 때", () => {
   it("응답을 기다리는 사이 저장하면 옛 응답이 화면을 덮지 않는다", async () => {
     await blog.load();

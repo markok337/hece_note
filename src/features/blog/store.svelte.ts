@@ -106,12 +106,12 @@ class BlogStore extends SyncedStore<Snapshot> {
       notice.say("err", NOT_LOADED_MESSAGE);
       return false;
     }
-    const reason = moveBlock(this.stored(from), this.stored(to));
+    const reason = moveBlock(this.stored(from));
     if (reason) {
       notice.say("err", reason);
       return false;
     }
-    const { moved, vacated } = applyMove(this.stored(from)!, to);
+    const { moved, vacated } = applyMove(this.stored(from)!, to, this.stored(to));
     // 실패하면 쓰기가 끝난 뒤 서버 값으로 다시 맞춘다.
     return this.write(
       () => {
