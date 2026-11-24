@@ -10,6 +10,8 @@ import LedgerView from "./features/ledger/LedgerView.svelte";
 import { ledger } from "./features/ledger/store.svelte";
 import ReadingView from "./features/reading/ReadingView.svelte";
 import { reading } from "./features/reading/store.svelte";
+import TodoView from "./features/todo/TodoView.svelte";
+import { todo } from "./features/todo/store.svelte";
 
 export interface Feature {
   id: string;
@@ -25,6 +27,14 @@ export interface Feature {
 }
 
 export const FEATURES = [
+  {
+    id: "todo",
+    label: "할일",
+    view: TodoView,
+    start: () => todo.start(),
+    stop: () => todo.stop(),
+    isLive: () => todo.live,
+  },
   {
     id: "blog",
     label: "블로그",
@@ -61,7 +71,7 @@ export const FEATURES = [
 
 export type TabId = (typeof FEATURES)[number]["id"];
 
-export const DEFAULT_TAB: TabId = "blog";
+export const DEFAULT_TAB: TabId = "todo";
 
 const STORAGE_KEY = "hece_tab";
 
