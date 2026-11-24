@@ -147,7 +147,6 @@
       {#each reading.booksOn(day) as book (book.id)}
         <div class="book-card">
           <button type="button" class="book-info" onclick={() => editingBook = book}><span class:haeng-text={book.reader === "행이"} class:chaeng-text={book.reader === "챙이"} class="reader-tag">{book.reader}</span><strong>{book.title}</strong><small>{book.author}</small></button>
-          {#if !book.end_day && book.start_day <= clock.today}<button type="button" class="sub small" aria-label="{book.title} 완독" disabled={!reading.loaded} onclick={() => void completeBook(book)}>완독</button>{/if}
           <button type="button" class="sub small" aria-label="{book.title} 수정" onclick={() => editBook(book)}>수정</button>
         </div>
       {/each}
